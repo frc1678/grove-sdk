@@ -1,5 +1,5 @@
 // Server side of a Grove app (everything under convex/).
-export { groveAuthConfig, type CustomJwtProvider } from "./authConfig";
+export { groveAuthConfig, type GroveAuthProvider } from "./authConfig";
 export {
   groveUser,
   groveUserFromIdentity,

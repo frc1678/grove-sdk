@@ -1,3 +1,4 @@
+import { useConvexAuth } from "convex/react";
 import { useEffect, type ReactNode } from "react";
 import { groveApi, type Me } from "./api";
 import { DevSignIn } from "./DevSignIn";
@@ -31,6 +32,10 @@ export function RequireSignedIn({
   pending?: (status: "pending" | "archived") => ReactNode;
 }) {
   const { isLoading, isAuthenticated, signInPath } = useGrove();
+  // The app client's own view: it only counts as signed in once the app
+  // deployment has verified the Grove's token. Rendering children before
+  // that would fire their queries unauthenticated.
+  const appAuth = useConvexAuth();
   const me = useMe();
   const isDev = import.meta.env.DEV;
 
@@ -40,7 +45,7 @@ export function RequireSignedIn({
     }
   }, [isLoading, isAuthenticated, isDev, signInPath]);
 
-  if (isLoading || (isAuthenticated && me === undefined)) {
+  if (isLoading || (isAuthenticated && (me === undefined || appAuth.isLoading))) {
     return <>{loading ?? <Spinner />}</>;
   }
   if (!isAuthenticated) {
@@ -48,6 +53,9 @@ export function RequireSignedIn({
   }
   if (me?.status === "pending" || me?.status === "archived") {
     return <>{pending ? pending(me.status) : <PendingScreen status={me.status} />}</>;
+  }
+  if (!appAuth.isAuthenticated) {
+    return <AuthProblem />;
   }
   return <>{children}</>;
 }
@@ -59,6 +67,30 @@ export function Spinner() {
         className="size-6 animate-spin rounded-full border-2 border-current border-t-transparent"
         aria-label="Loading"
       />
+    </div>
+  );
+}
+
+// Signed in to the Grove, but this app's deployment rejected the token —
+// almost always GROVE_SITE_URL pointing at a different Grove.
+function AuthProblem() {
+  const { appName, signOut } = useGrove();
+  return (
+    <div className="flex min-h-svh items-center justify-center bg-background p-4">
+      <div className="w-full max-w-sm rounded-xl border bg-card p-6 text-center text-card-foreground shadow-sm">
+        <h1 className="text-lg font-semibold">{appName} could not verify your sign-in</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          You are signed in to the Grove, but this app's backend did not accept the
+          session. Try signing out and back in; if it persists, tell a lead.
+        </p>
+        <button
+          type="button"
+          className="mt-4 text-sm underline underline-offset-4"
+          onClick={() => void signOut()}
+        >
+          Sign out
+        </button>
+      </div>
     </div>
   );
 }

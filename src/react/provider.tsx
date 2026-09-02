@@ -121,10 +121,13 @@ function GroveAuthCapture({
   const token = useAuthToken();
   const { signIn, signOut } = useAuthActions();
 
+  // Kept current during render, not in an effect: the app client (a child)
+  // runs its effects before this component's, and must see the token the
+  // moment isAuthenticated flips.
   const tokenRef = useRef<string | null>(token);
+  tokenRef.current = token;
   const waiters = useRef<((token: string | null) => void)[]>([]);
   useEffect(() => {
-    tokenRef.current = token;
     const pending = waiters.current;
     waiters.current = [];
     for (const resolve of pending) resolve(token);

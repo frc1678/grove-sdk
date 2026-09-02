@@ -143,7 +143,7 @@ export async function proposeIdentity(proposal: {
 type AnyReader = GenericDatabaseReader<any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyWriter = GenericDatabaseWriter<any>;
-type MirrorRow = RosterEntry & { _id: string; syncedAt: number };
+type MirrorRow = RosterEntry & { _id: string; _creationTime: number; syncedAt: number };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const table = (db: AnyReader) => db.query("groveRoster" as any) as any;
@@ -224,7 +224,8 @@ export async function applyRosterSnapshot(
       await ctx.db.insert("groveRoster" as any, { ...entry, syncedAt });
       added += 1;
     } else {
-      const { _id, syncedAt: _seen, ...currentFields } = current;
+      const { _id, _creationTime: _created, syncedAt: _seen, ...currentFields } = current;
+      void _created;
       if (JSON.stringify(currentFields) !== JSON.stringify(entry)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await ctx.db.replace(_id as any, { ...entry, syncedAt });
@@ -240,8 +241,9 @@ export async function applyRosterSnapshot(
 }
 
 function stripRow(row: MirrorRow): RosterEntry {
-  const { _id, syncedAt, ...entry } = row;
+  const { _id, _creationTime, syncedAt, ...entry } = row;
   void _id;
+  void _creationTime;
   void syncedAt;
   return entry;
 }
