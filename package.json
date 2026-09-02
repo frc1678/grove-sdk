@@ -1,0 +1,61 @@
+{
+  "name": "@frc1678/grove-sdk",
+  "version": "0.1.0",
+  "description": "Everything a Citrus Circuits Grove app needs to plug into the Grove: sign-in, identity claims, the roster mirror, and the house style.",
+  "private": false,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/frc1678/grove-sdk.git"
+  },
+  "exports": {
+    "./server": "./src/server/index.ts",
+    "./react": "./src/react/index.tsx",
+    "./client": "./src/client/index.ts",
+    "./theme.css": "./src/theme.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "oxlint",
+    "env:names": "bun scripts/env-names.ts"
+  },
+  "peerDependencies": {
+    "@convex-dev/auth": ">=0.0.90",
+    "convex": ">=1.40.0",
+    "react": ">=19",
+    "react-dom": ">=19"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "@convex-dev/auth": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@convex-dev/auth": "^0.0.95",
+    "@edge-runtime/vm": "^5.0.0",
+    "@types/bun": "^1.4.0",
+    "@types/node": "^26.4.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "convex": "^1.45.0",
+    "convex-test": "^0.0.38",
+    "oxlint": "^1.75.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.11"
+  }
+}
