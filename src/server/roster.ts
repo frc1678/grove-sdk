@@ -37,6 +37,8 @@ export const groveRosterTable = defineTable({
   subteam: v.optional(v.string()),
   additionalGroups: v.array(v.string()),
   proposedDeletion: v.boolean(),
+  // The linked Grove account's status (active/pending/archived), when known.
+  accountStatus: v.optional(v.string()),
   syncedAt: v.number(),
 })
   .index("entryId", ["entryId"])
@@ -59,6 +61,7 @@ export type RosterEntry = {
   subteam?: string;
   additionalGroups: string[];
   proposedDeletion: boolean;
+  accountStatus?: "active" | "pending" | "archived";
 };
 
 export type RosterSnapshot = {

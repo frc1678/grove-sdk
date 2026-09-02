@@ -14,7 +14,8 @@
     "./react": "./src/react/index.tsx",
     "./client": "./src/client/index.ts",
     "./theme.css": "./src/theme.css",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./groups": "./src/server/subteams.ts"
   },
   "files": [
     "src",
