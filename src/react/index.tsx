@@ -8,6 +8,7 @@ export {
 } from "./provider";
 export { groveSignInUrl, PendingScreen, RequireSignedIn, Spinner, useMe } from "./guards";
 export { DevSignIn } from "./DevSignIn";
+export { GroveIcon } from "./GroveIcon";
 export { GroveShell } from "./GroveShell";
 export {
   groveApi,
