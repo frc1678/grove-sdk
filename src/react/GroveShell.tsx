@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { GroveIcon } from "./GroveIcon";
 import { useMe } from "./guards";
 import { useGrove } from "./provider";
 
@@ -39,7 +40,7 @@ export function GroveShell({
             className="flex items-center gap-2 text-sm font-semibold"
             title="Back to the Grove"
           >
-            <span aria-hidden="true">🍊</span>
+            <GroveIcon className="size-5 shrink-0" />
             <span className="hidden sm:inline">Grove</span>
           </a>
           <span className="text-muted-foreground">/</span>
