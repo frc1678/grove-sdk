@@ -132,13 +132,18 @@ export function GroveTutorial({
       // the one that breaks, and the UA's own max-width is not enough.
       className="m-auto w-[calc(100vw-2rem)] max-w-md rounded-xl border bg-card p-0 text-card-foreground shadow-lg backdrop:bg-black/50"
     >
-      <div className="flex max-h-[calc(100svh-2rem)] flex-col">
+      {/* One fixed height for every slide, capped to the viewport. Sizing to
+        the content instead let a short slide draw a short dialog and a long
+        one a tall dialog, so Next and Back jumped to a new place on the
+        screen at every step and people missed them. The body scrolls inside
+        this box; the header and footer do not move. */}
+      <div className="flex h-[min(32rem,calc(100svh-2rem))] flex-col">
         <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
           <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {title} · step {step + 1} of {slides.length}
             </p>
-            <h2 id={headingId} className="mt-1 text-lg font-semibold">
+            <h2 id={headingId} className="mt-1 text-2xl font-semibold tracking-tight">
               {slide.title}
             </h2>
           </div>
@@ -160,13 +165,16 @@ export function GroveTutorial({
           </button>
         </div>
 
-        <div className="grid gap-4 overflow-y-auto px-5 py-5">
-          {slide.icon !== undefined && (
-            <div className="flex items-center justify-center rounded-lg bg-muted py-6 text-muted-foreground">
-              {slide.icon}
-            </div>
-          )}
-          <div className="text-sm leading-relaxed text-muted-foreground">{slide.body}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-5">
+          {/* Centred while the slide is short, scrolled once it is not. */}
+          <div className="grid min-h-full content-center gap-4">
+            {slide.icon !== undefined && (
+              <div className="flex items-center justify-center rounded-lg bg-muted py-6 text-muted-foreground">
+                {slide.icon}
+              </div>
+            )}
+            <div className="text-sm leading-relaxed text-muted-foreground">{slide.body}</div>
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t px-5 py-3">
@@ -189,7 +197,9 @@ export function GroveTutorial({
             <button
               type="button"
               onClick={() => (last ? dismiss() : setStep((current) => current + 1))}
-              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+              // min-w keeps Done exactly as wide as Next, so the last step
+              // does not nudge the button sideways under a waiting thumb.
+              className="min-w-20 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
               {last ? "Done" : "Next"}
             </button>
