@@ -65,11 +65,18 @@ export function GroveShell({
               );
             })}
           </nav>
-          <div className="ml-auto flex items-center gap-2">
-            {actions}
+          {/* min-w-0 is load-bearing. A flex item defaults to min-width:auto
+              and refuses to shrink below its content, so on a phone this
+              cluster kept its full width and pushed Sign out clean off the
+              screen, with the document scrolling sideways to match. What
+              triggers it is an app passing a wide `actions` — Sim passes a
+              season selector and the signed-in name — so the shell has to
+              survive that rather than trusting every app to stay narrow. */}
+          <div className="ml-auto flex min-w-0 items-center gap-2">
+            <div className="min-w-0 truncate">{actions}</div>
             {me && (
               <span
-                className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-medium"
+                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium"
                 title={me.name ?? me.email ?? ""}
               >
                 {initials}
@@ -77,7 +84,7 @@ export function GroveShell({
             )}
             <button
               type="button"
-              className="text-sm text-muted-foreground hover:text-foreground"
+              className="shrink-0 whitespace-nowrap text-sm text-muted-foreground hover:text-foreground"
               onClick={() => void signOut()}
             >
               Sign out
