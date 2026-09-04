@@ -42,7 +42,15 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
  * — or a page rendered before it mounts — shows no dead control, and there
  * is no flag to pass and keep in step.
  */
-export function TutorialButton({ className }: { className?: string }) {
+export function TutorialButton({
+  className,
+  children,
+}: {
+  className?: string;
+  // Supply your own label when an icon-only circle would look wrong — the
+  // Mission Planner puts this in a sidebar of text links, where it would.
+  children?: ReactNode;
+}) {
   const reopen = useReopenTutorial();
   if (reopen === null) return null;
 
@@ -57,6 +65,7 @@ export function TutorialButton({ className }: { className?: string }) {
         "flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
       }
     >
+      {children ?? (
       <svg viewBox="0 0 20 20" className="size-5" fill="none" aria-hidden="true">
         <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
         <path
@@ -67,6 +76,7 @@ export function TutorialButton({ className }: { className?: string }) {
         />
         <circle cx="10" cy="14.4" r="0.9" fill="currentColor" />
       </svg>
+      )}
     </button>
   );
 }
