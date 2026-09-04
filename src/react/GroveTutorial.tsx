@@ -57,6 +57,18 @@ export function GroveTutorial({
     setOpen(true);
   }, []);
 
+  // Record first, then close. Hanging the recording solely off the dialog's
+  // `close` event looked tidier and did not work: closing through React left
+  // the event unfired, so skipping never persisted and the tutorial came
+  // back on the next load. Every explicit exit calls this directly, and the
+  // close listener below still calls it for Escape, which bypasses React
+  // entirely. Recording twice is harmless — recordTutorialView is a no-op
+  // when the row already exists.
+  const dismiss = useCallback(() => {
+    void record({ version });
+    setOpen(false);
+  }, [record, version]);
+
   useEffect(() => {
     if (offered.current) return;
     if (
@@ -100,12 +112,11 @@ export function GroveTutorial({
     const dialog = dialogRef.current;
     if (dialog === null) return;
     const onClose = () => {
-      setOpen(false);
-      void record({ version });
+      dismiss();
     };
     dialog.addEventListener("close", onClose);
     return () => dialog.removeEventListener("close", onClose);
-  }, [record, version]);
+  }, [dismiss]);
 
   if (slides.length === 0) return null;
   const slide = slides[Math.min(step, slides.length - 1)];
@@ -134,7 +145,7 @@ export function GroveTutorial({
           <button
             type="button"
             aria-label="Close"
-            onClick={() => setOpen(false)}
+            onClick={dismiss}
             className="-mr-1 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <svg viewBox="0 0 20 20" className="size-4" aria-hidden="true">
@@ -161,7 +172,7 @@ export function GroveTutorial({
         <div className="flex items-center justify-between gap-3 border-t px-5 py-3">
           <button
             type="button"
-            onClick={() => setOpen(false)}
+            onClick={dismiss}
             className="shrink-0 text-sm text-muted-foreground hover:text-foreground"
           >
             Skip
@@ -177,7 +188,7 @@ export function GroveTutorial({
             </button>
             <button
               type="button"
-              onClick={() => (last ? setOpen(false) : setStep((current) => current + 1))}
+              onClick={() => (last ? dismiss() : setStep((current) => current + 1))}
               className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
               {last ? "Done" : "Next"}
