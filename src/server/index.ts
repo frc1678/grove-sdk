@@ -47,6 +47,11 @@ export {
   type RosterEntry,
   type RosterSnapshot,
 } from "./roster";
+export {
+  recordTutorialView,
+  tutorialSeenVersion,
+  tutorialViewsTable,
+} from "./tutorial";
 export { googleAccessToken, base64UrlEncode } from "./google";
 export { sendSlackDm, slackApi, slackToken } from "./slack";
 export {

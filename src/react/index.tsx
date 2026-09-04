@@ -10,6 +10,8 @@ export { groveSignInUrl, PendingScreen, RequireSignedIn, Spinner, useMe } from "
 export { DevSignIn } from "./DevSignIn";
 export { GroveIcon } from "./GroveIcon";
 export { GroveShell } from "./GroveShell";
+export { GroveTutorial, type GroveTutorialProps } from "./GroveTutorial";
+export { type TutorialSlide } from "./tutorialState";
 export {
   groveApi,
   type GroveAppCard,
