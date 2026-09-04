@@ -24,8 +24,10 @@ export const tutorialViewsTable = defineTable({
   seenAt: v.number(),
 })
   // Compound so one person's rows come back on a prefix scan and an exact
-  // (person, version) row is a point lookup.
-  .index("userId", ["userId", "version"]);
+  // (person, version) row is a point lookup. Named for both fields, which is
+  // both the Convex guideline and this fleet's own convention — see the
+  // Grove's sourceAndYear.
+  .index("userIdAndVersion", ["userId", "version"]);
 
 // The SDK can't know the app's data model, so the table is addressed by
 // name through loosely typed readers, exactly as the roster mirror is.
@@ -47,7 +49,7 @@ export async function tutorialSeenVersion(ctx: {
 }): Promise<number | null> {
   const user = await requireActiveUser(ctx);
   const rows: ViewRow[] = await table(ctx.db)
-    .withIndex("userId", (q: any) => q.eq("userId", user.userId))
+    .withIndex("userIdAndVersion", (q: any) => q.eq("userId", user.userId))
     .collect();
   if (rows.length === 0) return null;
   return rows.reduce((newest, row) => Math.max(newest, row.version), rows[0].version);
@@ -61,7 +63,9 @@ export async function recordTutorialView(
 ): Promise<null> {
   const user = await requireActiveUser(ctx);
   const existing: ViewRow | null = await table(ctx.db)
-    .withIndex("userId", (q: any) => q.eq("userId", user.userId).eq("version", version))
+    .withIndex("userIdAndVersion", (q: any) =>
+      q.eq("userId", user.userId).eq("version", version),
+    )
     .unique();
   if (existing === null) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
