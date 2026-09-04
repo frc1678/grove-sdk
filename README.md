@@ -27,6 +27,8 @@ builds. Peer dependencies: `convex`, `@convex-dev/auth`, `react`,
 | `fetchGroveRoster(year?)`, `applyRosterSnapshot(ctx, snapshot)` | Sync the mirror from `GET /api/v1/roster` (needs `GROVE_APP_KEY`) — see the template's `convex/grove.ts` |
 | `rosterForYear`, `rosterEntryById`, `rosterEntryForUser` | Read the mirror |
 | `proposeIdentity({ email, suggestedEntryId?, context? })` | Hand an unknown email to the Grove's Admin → Identities queue |
+| `tutorialViewsTable` | Schema fragment for the `tutorialViews` table |
+| `tutorialSeenVersion(ctx)`, `recordTutorialView(ctx, version)` | What `<GroveTutorial>` reads and writes — see the template's `convex/tutorial.ts` |
 | `PRIMARY_SUBTEAMS`, `ADDITIONAL_GROUPS`, `ROLE_GROUPS`, `ALL_GROUPS`, `entryInGroup`, `matchSubteamValue` | The Grove's group vocabulary |
 | `seasonYearForDate` | FRC season year (fall starts the next year) |
 | `googleAccessToken(scopes)`, `slackApi`, `sendSlackDm` | Google service-account and Slack helpers, reading the app deployment's own env vars |
@@ -54,11 +56,50 @@ roster entry id (strings).
 | `useGrove()` | Both clients, auth state, `signIn`, `signOut` |
 | `useGroveQuery(groveApi.roster.list, { year })` | Live Grove queries from the browser |
 | `GroveShell`, `PendingScreen`, `Spinner`, `DevSignIn` | House chrome |
+| `GroveTutorial`, `TutorialSlide` | The first-run tutorial (below) |
 
 `@frc1678/grove-sdk/groups` exports the group vocabulary for frontends, and
 `@frc1678/grove-sdk/theme.css` is the Grove's Tailwind theme (add
 `@source "../node_modules/@frc1678/grove-sdk/src";` to your CSS so the SDK's
 screens get their classes).
+
+## The first-run tutorial
+
+Every Grove app shows a short tutorial the first time someone opens it. The
+slides are the app's; the mechanism is here.
+
+```ts
+// convex/schema.ts
+tutorialViews: tutorialViewsTable,
+
+// convex/tutorial.ts — thin wrappers, like convex/grove.ts
+export const seenVersion = query({ …, handler: (ctx) => tutorialSeenVersion(ctx) })
+export const markSeen = mutation({ …, handler: (ctx, a) => recordTutorialView(ctx, a.version) })
+```
+
+```tsx
+<GroveShell nav={nav}>
+  <Outlet />
+  <GroveTutorial
+    version={TUTORIAL_VERSION}
+    slides={slides}
+    seenVersion={api.tutorial.seenVersion}
+    markSeen={api.tutorial.markSeen}
+  />
+</GroveShell>
+```
+
+It opens itself when the stored version is missing or lower than `version`,
+and stays shut otherwise — so bumping `version` is how an app re-shows an
+updated tutorial to everyone. Skip and Done both record the version;
+someone who skips is not asked twice. Rendered inside `GroveShell`, it also
+puts a help button in the header that reopens it; an app that renders no
+`<GroveTutorial>` gets no button.
+
+It must sit behind `RequireSignedIn`: both wrapped functions derive the
+caller from the token and refuse anyone who isn't active. Slides are text,
+icons, and simple diagrams — screenshots go stale the first time the app is
+restyled.
 
 ## How trust works
 
