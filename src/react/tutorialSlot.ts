@@ -16,3 +16,12 @@ export const TutorialSlotContext = createContext<TutorialSlot>(NO_SLOT);
 export function useTutorialSlot(): TutorialSlot {
   return useContext(TutorialSlotContext);
 }
+
+// The other direction: what a header needs to draw the reopen button. Kept
+// separate from the slot so registering a tutorial does not re-render every
+// consumer of the button, and so an app can read one without the other.
+export const TutorialOpenContext = createContext<(() => void) | null>(null);
+
+export function useReopenTutorial(): (() => void) | null {
+  return useContext(TutorialOpenContext);
+}
