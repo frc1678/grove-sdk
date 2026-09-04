@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { GroveIcon } from "./GroveIcon";
 import { useMe } from "./guards";
 import { useGrove } from "./provider";
-import { TutorialSlotContext, type TutorialSlot } from "./tutorialSlot";
+import { TutorialButton, TutorialProvider } from "./tutorialChrome";
 
 // The house chrome: a header with the way back to the Grove, the app's
 // name and nav, and the signed-in person. Apps put their routes inside.
@@ -32,18 +32,12 @@ export function GroveShell({
       .slice(0, 2)
       .toUpperCase() ?? "?";
 
-  // A <GroveTutorial> in `children` hands back a way to reopen itself; an
-  // app without one registers nothing and gets no button. The extra arrow
-  // is not decoration: setState treats a bare function as an updater.
-  const [reopenTutorial, setReopenTutorial] = useState<(() => void) | null>(null);
-  const register = useCallback(
-    (open: (() => void) | null) => setReopenTutorial(() => open),
-    [],
-  );
-  const slot = useMemo<TutorialSlot>(() => ({ register }), [register]);
 
+  // The provider wraps the header too, not just children: the reopen
+  // button lives up there and has to see what the tutorial registered.
   return (
-    <div className="min-h-svh bg-background text-foreground">
+    <TutorialProvider>
+      <div className="min-h-svh bg-background text-foreground">
       <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
           <a
@@ -87,18 +81,9 @@ export function GroveShell({
             <div className="min-w-0 truncate">{actions}</div>
             {/* Icon-only and shrink-0, for the same reason the comment above
                 gives: this cluster has a phone's width to work with, and a
-                labelled "Tutorial" button spends it. */}
-            {reopenTutorial !== null && (
-              <button
-                type="button"
-                onClick={reopenTutorial}
-                title="How this app works"
-                aria-label="How this app works"
-                className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                <HelpIcon className="size-5" />
-              </button>
-            )}
+                labelled "Tutorial" button spends it. It renders nothing
+                until a tutorial registers itself. */}
+            <TutorialButton />
             {me && (
               <span
                 className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium"
@@ -130,26 +115,9 @@ export function GroveShell({
           </nav>
         )}
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        <TutorialSlotContext.Provider value={slot}>{children}</TutorialSlotContext.Provider>
-      </main>
-    </div>
+      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      </div>
+    </TutorialProvider>
   );
 }
 
-// A question mark in a circle. Hand-drawn like GroveIcon rather than pulled
-// from lucide: the SDK deliberately has no icon dependency.
-function HelpIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
-      <path
-        d="M9.6 9.3a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.7-.9 1.3v.5"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="16.6" r="1" fill="currentColor" />
-    </svg>
-  );
-}
