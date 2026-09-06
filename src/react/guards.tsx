@@ -1,5 +1,5 @@
 import { useConvexAuth } from "convex/react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { groveApi, type Me } from "./api";
 import { DevSignIn } from "./DevSignIn";
 import { useGrove, useGroveQuery } from "./provider";
@@ -15,6 +15,12 @@ export function groveSignInUrl(signInPath: string, next?: string): string {
     next ?? `${window.location.pathname}${window.location.search}${window.location.hash}`;
   return `${signInPath}?next=${encodeURIComponent(target)}`;
 }
+
+// How long the app client may report itself unauthenticated, after having
+// been authenticated, before the guard believes it. A token rotation or a
+// dropped websocket makes that state flicker for a moment; treating the
+// flicker as a failure would unmount every page and lose its state.
+export const AUTH_PROBLEM_DELAY_MS = 3000;
 
 // Gate for everything behind sign-in. Signed-out visitors go to the Grove's
 // sign-in page (same origin in production) and come back afterwards. In
@@ -39,11 +45,26 @@ export function RequireSignedIn({
   const me = useMe();
   const isDev = import.meta.env.DEV;
 
+  // Set during render, like the provider's tokenRef, so a rotation that lands
+  // between renders can't be read as a first-ever failure.
+  const wasAppAuthenticated = useRef(false);
+  if (appAuth.isAuthenticated) wasAppAuthenticated.current = true;
+  const [authProblem, setAuthProblem] = useState(false);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isDev) {
       window.location.replace(groveSignInUrl(signInPath));
     }
   }, [isLoading, isAuthenticated, isDev, signInPath]);
+
+  useEffect(() => {
+    if (appAuth.isAuthenticated || appAuth.isLoading || !wasAppAuthenticated.current) {
+      setAuthProblem(false);
+      return;
+    }
+    const timer = setTimeout(() => setAuthProblem(true), AUTH_PROBLEM_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [appAuth.isAuthenticated, appAuth.isLoading]);
 
   if (isLoading || (isAuthenticated && (me === undefined || appAuth.isLoading))) {
     return <>{loading ?? <Spinner />}</>;
@@ -54,7 +75,10 @@ export function RequireSignedIn({
   if (me?.status === "pending" || me?.status === "archived") {
     return <>{pending ? pending(me.status) : <PendingScreen status={me.status} />}</>;
   }
-  if (!appAuth.isAuthenticated) {
+  // A first-ever rejection is a real problem and says so at once. Once the app
+  // deployment has accepted the token, a later `false` is a rotation until it
+  // has persisted for AUTH_PROBLEM_DELAY_MS, and children stay mounted.
+  if (!appAuth.isAuthenticated && (!wasAppAuthenticated.current || authProblem)) {
     return <AuthProblem />;
   }
   return <>{children}</>;

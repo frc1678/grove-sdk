@@ -51,7 +51,7 @@ roster entry id (strings).
 | Export | What |
 | --- | --- |
 | `GroveProvider` | Wires the Grove's Convex client (sign-in, session) and the app's own client, handing the Grove's token to the latter |
-| `RequireSignedIn` | Redirects signed-out visitors to the Grove's `/sign-in?next=` (a local form in dev), waits for the app backend to accept the token, shows pending/archived accounts a holding page |
+| `RequireSignedIn` | Redirects signed-out visitors to the Grove's `/sign-in?next=` (a local form in dev), waits for the app backend to accept the token, shows pending/archived accounts a holding page. Once that backend has accepted the token, children stay mounted through a brief unauthenticated blip such as a JWT rotation; it only reports a problem if that lasts `AUTH_PROBLEM_DELAY_MS` (3 s) |
 | `useMe()` | The Grove account (`users.me`) |
 | `useGrove()` | Both clients, auth state, `signIn`, `signOut` |
 | `useGroveQuery(groveApi.roster.list, { year })` | Live Grove queries from the browser |
