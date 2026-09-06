@@ -101,4 +101,22 @@ describe("RequireSignedIn", () => {
     expect(childShown()).toBe(false);
     expect(mounts).toBe(0);
   });
+
+  test("a resolved rotation cancels its timer instead of arming a later one", () => {
+    const update = mount();
+
+    // First blip: starts a 3s timer, then recovers before it fires.
+    update({ isLoading: false, isAuthenticated: false });
+    act(() => void vi.advanceTimersByTime(1000));
+    update({ isLoading: false, isAuthenticated: true });
+
+    // Second blip starts its own fresh 3s timer at this later point in time.
+    update({ isLoading: false, isAuthenticated: false });
+    act(() => void vi.advanceTimersByTime(2100));
+    // Only 2.1s since the second blip: too soon for either timer to have
+    // legitimately fired, unless the first blip's uncancelled timer (armed
+    // 1s earlier) reached its 3s mark and fired early.
+    expect(childShown()).toBe(true);
+    expect(authProblemShown()).toBe(false);
+  });
 });
