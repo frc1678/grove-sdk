@@ -6,7 +6,14 @@ export {
   type GroveContextValue,
   type GroveProviderProps,
 } from "./provider";
-export { groveSignInUrl, PendingScreen, RequireSignedIn, Spinner, useMe } from "./guards";
+export {
+  AUTH_PROBLEM_DELAY_MS,
+  groveSignInUrl,
+  PendingScreen,
+  RequireSignedIn,
+  Spinner,
+  useMe,
+} from "./guards";
 export { DevSignIn } from "./DevSignIn";
 export { GroveIcon } from "./GroveIcon";
 export { GroveShell } from "./GroveShell";
