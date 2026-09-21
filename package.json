@@ -11,6 +11,7 @@
   },
   "exports": {
     "./server": "./src/server/index.ts",
+    "./build": "./src/build/version.ts",
     "./react": "./src/react/index.tsx",
     "./client": "./src/client/index.ts",
     "./theme.css": "./src/theme.css",

@@ -21,6 +21,8 @@ export { GroveShell } from "./GroveShell";
 // the layout in TutorialProvider and drop TutorialButton in the header.
 export { TutorialButton, TutorialProvider } from "./tutorialChrome";
 export { GroveTutorial, type GroveTutorialProps } from "./GroveTutorial";
+// The Vxx.yy badge. Pass it the string from the app's src/app-version.ts.
+export { GroveVersionBadge } from "./VersionBadge";
 export { type TutorialSlide } from "./tutorialState";
 export {
   groveApi,
