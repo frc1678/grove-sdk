@@ -101,6 +101,64 @@ caller from the token and refuse anyone who isn't active. Slides are text,
 icons, and simple diagrams — screenshots go stale the first time the app is
 restyled.
 
+## The version badge
+
+Every Grove app shows a `Vxx.yy` version, in the same place in every app, so
+that "what version are you on?" has an answer someone can read out across a
+loud field. Neither half is typed by hand twice.
+
+`xx` is the app's `TUTORIAL_VERSION`, moved into a file that holds nothing
+else:
+
+```ts
+// src/version.ts — the whole file
+export const APP_MAJOR = 3
+
+// src/tutorial.tsx
+export const TUTORIAL_VERSION = APP_MAJOR
+```
+
+One number, so a functional change big enough to need a new tutorial slide
+also moves the version people see, and bumping it still re-shows the
+tutorial to everyone who dismissed the old one.
+
+`yy` is the number of commits on `main` since `src/version.ts` last changed.
+Because that file holds only the major, "the last commit that touched it" is
+exactly "the last time the major moved" — there is no diff to parse and no
+counter to remember, and a merge that changes nothing else still moves the
+version.
+
+```ts
+// vite.config.ts
+import { groveVersionDefine } from "@frc1678/grove-sdk/build"
+import { APP_MAJOR } from "./src/version"
+
+export default defineConfig({
+  define: groveVersionDefine({ major: APP_MAJOR }),
+})
+```
+
+```ts
+// src/app-version.ts — reads what vite injected
+declare const __GROVE_APP_VERSION__: string
+export const APP_VERSION = __GROVE_APP_VERSION__
+```
+
+```tsx
+<GroveShell nav={nav} version={APP_VERSION}>   // or, with your own header:
+<GroveVersionBadge version={APP_VERSION} />
+```
+
+Keep `src/version.ts` free of anything but the constant: `vite.config.ts`
+imports it at config time, where a browser global would not exist.
+
+**A shallow clone cannot compute the minor.** `actions/checkout` fetches
+depth 1 by default, and in that repository every count is 0, so every build
+would call itself `Vxx.00` and look perfectly healthy. Any workflow that
+runs `bun run build` needs `fetch-depth: 0`; `resolveGroveVersion` prints a
+warning when it finds itself in a shallow clone rather than letting the
+label lie quietly.
+
 ## How trust works
 
 The Grove signs its JWTs and publishes the public key at

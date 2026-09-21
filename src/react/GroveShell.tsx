@@ -3,6 +3,7 @@ import { GroveIcon } from "./GroveIcon";
 import { useMe } from "./guards";
 import { useGrove } from "./provider";
 import { TutorialButton, TutorialProvider } from "./tutorialChrome";
+import { GroveVersionBadge } from "./VersionBadge";
 
 // The house chrome: a header with the way back to the Grove, the app's
 // name and nav, and the signed-in person. Apps put their routes inside.
@@ -13,6 +14,7 @@ export function GroveShell({
   currentPath,
   actions,
   groveHref = "/",
+  version,
   children,
 }: {
   nav?: { href: string; label: string }[];
@@ -20,6 +22,8 @@ export function GroveShell({
   currentPath?: string;
   actions?: ReactNode;
   groveHref?: string;
+  // "V03.07", from the app's src/app-version.ts. Omitted, nothing renders.
+  version?: string;
   children: ReactNode;
 }) {
   const { appName, signOut } = useGrove();
@@ -49,7 +53,13 @@ export function GroveShell({
             <span className="hidden sm:inline">Grove</span>
           </a>
           <span className="text-muted-foreground">/</span>
-          <span className="font-semibold">{appName}</span>
+          {/* Beside the app's name, where the eye already goes to work
+              out which app this is, and muted enough not to compete with
+              it. baseline-ish alignment comes from the flex row. */}
+          <span className="flex min-w-0 items-baseline gap-1.5">
+            <span className="font-semibold">{appName}</span>
+            {version !== undefined && <GroveVersionBadge version={version} />}
+          </span>
           <nav className="ml-4 hidden items-center gap-1 sm:flex">
             {nav.map((item) => {
               const active =
