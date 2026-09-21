@@ -37,6 +37,9 @@ type SignIn = ReturnType<typeof useAuthActions>["signIn"];
 export type GroveContextValue = {
   grove: ConvexReactClient;
   app: ConvexReactClient;
+  // The Grove deployment URL the session lives on, so the dev sign-in form
+  // can say which Grove it is talking to.
+  groveUrl: string;
   appName: string;
   // Where to send someone who isn't signed in. Relative by default: the
   // Grove owns /sign-in on this origin and returns to `next` afterwards.
@@ -94,6 +97,7 @@ export function GroveProvider({
       <GroveAuthCapture
         grove={clients.grove}
         app={clients.app}
+        groveUrl={groveUrl}
         appName={appName}
         signInPath={signInPath}
       >
@@ -108,12 +112,14 @@ export function GroveProvider({
 function GroveAuthCapture({
   grove,
   app,
+  groveUrl,
   appName,
   signInPath,
   children,
 }: {
   grove: ConvexReactClient;
   app: ConvexReactClient;
+  groveUrl: string;
   appName: string;
   signInPath: string;
   children: ReactNode;
@@ -158,6 +164,7 @@ function GroveAuthCapture({
     () => ({
       grove,
       app,
+      groveUrl,
       appName,
       signInPath,
       isLoading,
@@ -168,7 +175,7 @@ function GroveAuthCapture({
       tokenRef,
       waitForNewToken,
     }),
-    [grove, app, appName, signInPath, isLoading, isAuthenticated, token, signIn, signOut, waitForNewToken],
+    [grove, app, groveUrl, appName, signInPath, isLoading, isAuthenticated, token, signIn, signOut, waitForNewToken],
   );
 
   return (
