@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatGroveVersion, parseCommitCount } from "./versionFormat";
+import { formatGroveVersion, parseCommitCount } from "./versionFormat.js";
 
 describe("formatGroveVersion", () => {
   it("pads both halves to two digits", () => {
