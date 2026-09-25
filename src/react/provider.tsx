@@ -20,6 +20,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { appSlugFromBase } from "../report/context";
+import { ReportProvider } from "../report";
+import { groveApi, type Me } from "./api";
 
 // One provider gives an app both halves of the Grove contract:
 //
@@ -72,6 +75,14 @@ export type GroveProviderProps = {
   appUrl: string;
   appName: string;
   signInPath?: string;
+  // "V03.07", from the app's src/app-version.ts. Problem reports name the
+  // build they were filed from with it, so pass it here even when the
+  // header already shows it through GroveShell.
+  version?: string;
+  // The slug the app is registered under in Admin → Apps. Defaults to the
+  // first segment of Vite's base ("/sim/" → "sim"), which every app already
+  // sets so the Grove can serve it under /<slug>.
+  appSlug?: string;
   children: ReactNode;
 };
 
@@ -80,6 +91,8 @@ export function GroveProvider({
   appUrl,
   appName,
   signInPath = "/sign-in",
+  version,
+  appSlug = appSlugFromBase(import.meta.env.BASE_URL),
   children,
 }: GroveProviderProps) {
   const clients = useMemo(
@@ -97,7 +110,9 @@ export function GroveProvider({
         appName={appName}
         signInPath={signInPath}
       >
-        {children}
+        <GroveReport app={appSlug} version={version}>
+          {children}
+        </GroveReport>
       </GroveAuthCapture>
     </ConvexAuthProvider>
   );
@@ -209,6 +224,58 @@ export function useGroveTokenBridge() {
   return useMemo(
     () => ({ isLoading, isAuthenticated, fetchAccessToken }),
     [isLoading, isAuthenticated, fetchAccessToken],
+  );
+}
+
+// Problem reports go to the Grove through its client, tagged with the
+// signed-in account. users.me is the same query RequireSignedIn and
+// GroveShell read, and the Convex client shares one subscription between
+// identical watches, so this costs nothing on the wire.
+//
+// Watched directly rather than through useGroveQuery, which rethrows a
+// query error: this sits above every app's routes and error boundaries,
+// and a failed lookup that only feeds Sentry's user field must never take
+// the whole app down with it.
+function GroveReport({
+  app,
+  version,
+  children,
+}: {
+  app: string;
+  version?: string;
+  children: ReactNode;
+}) {
+  const { grove, isAuthenticated } = useGrove();
+  const [me, setMe] = useState<{ id: string; role?: string } | null>(null);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMe(null);
+      return;
+    }
+    const watch = (grove.watchQuery as (q: unknown, a: unknown) => Watch<Me | null>)(
+      groveApi.users.me,
+      {},
+    );
+    const read = () => {
+      try {
+        const value = watch.localQueryResult();
+        if (value === undefined) return;
+        setMe((current) => {
+          const next = value === null ? null : { id: value._id, role: value.effectiveRole ?? value.role };
+          return current?.id === next?.id && current?.role === next?.role ? current : next;
+        });
+      } catch {
+        // No user tag on Sentry events is the whole cost of a failure here.
+      }
+    };
+    read();
+    return watch.onUpdate(read);
+  }, [grove, isAuthenticated]);
+  const user = me;
+  return (
+    <ReportProvider client={grove} app={app} version={version} user={user}>
+      {children}
+    </ReportProvider>
   );
 }
 

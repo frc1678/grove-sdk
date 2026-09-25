@@ -47,6 +47,7 @@ export {
   type RosterEntry,
   type RosterSnapshot,
 } from "./roster";
+export { notifyGroveDeployed } from "./deployed";
 export {
   recordTutorialView,
   tutorialSeenVersion,
