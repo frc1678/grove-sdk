@@ -27,6 +27,7 @@ builds. Peer dependencies: `convex`, `@convex-dev/auth`, `react`,
 | `fetchGroveRoster(year?)`, `applyRosterSnapshot(ctx, snapshot)` | Sync the mirror from `GET /api/v1/roster` (needs `GROVE_APP_KEY`) — see the template's `convex/grove.ts` |
 | `rosterForYear`, `rosterEntryById`, `rosterEntryForUser` | Read the mirror |
 | `proposeIdentity({ email, suggestedEntryId?, context? })` | Hand an unknown email to the Grove's Admin → Identities queue |
+| `notifyGroveDeployed({ sha, version? })` | Tell the Grove which commit just went live (`POST /api/v1/deployed`, needs `GROVE_APP_KEY`) — see [Report a problem](#report-a-problem) |
 | `tutorialViewsTable` | Schema fragment for the `tutorialViews` table |
 | `tutorialSeenVersion(ctx)`, `recordTutorialView(ctx, version)` | What `<GroveTutorial>` reads and writes — see the template's `convex/tutorial.ts` |
 | `PRIMARY_SUBTEAMS`, `ADDITIONAL_GROUPS`, `ROLE_GROUPS`, `ALL_GROUPS`, `entryInGroup`, `matchSubteamValue` | The Grove's group vocabulary |
@@ -41,7 +42,7 @@ roster entry id (strings).
 ## `@frc1678/grove-sdk/react` — in the frontend
 
 ```tsx
-<GroveProvider groveUrl={VITE_GROVE_CONVEX_URL} appUrl={VITE_CONVEX_URL} appName="Chime">
+<GroveProvider groveUrl={VITE_GROVE_CONVEX_URL} appUrl={VITE_CONVEX_URL} appName="Chime" version={APP_VERSION}>
   <RequireSignedIn>
     <GroveShell nav={[{ href: "/chime/", label: "Events" }]}>…</GroveShell>
   </RequireSignedIn>
@@ -50,13 +51,14 @@ roster entry id (strings).
 
 | Export | What |
 | --- | --- |
-| `GroveProvider` | Wires the Grove's Convex client (sign-in, session) and the app's own client, handing the Grove's token to the latter |
+| `GroveProvider` | Wires the Grove's Convex client (sign-in, session) and the app's own client, handing the Grove's token to the latter; also wraps the app in the report provider (below) |
 | `RequireSignedIn` | Redirects signed-out visitors to the Grove's `/sign-in?next=` (a local form in dev), waits for the app backend to accept the token, shows pending/archived accounts a holding page. Once that backend has accepted the token, children stay mounted through a brief unauthenticated blip such as a JWT rotation; it only reports a problem if that lasts `AUTH_PROBLEM_DELAY_MS` (3 s) |
 | `useMe()` | The Grove account (`users.me`) |
 | `useGrove()` | Both clients, auth state, `signIn`, `signOut` |
 | `useGroveQuery(groveApi.roster.list, { year })` | Live Grove queries from the browser |
 | `GroveShell`, `PendingScreen`, `Spinner`, `DevSignIn` | House chrome |
 | `GroveTutorial`, `TutorialSlide` | The first-run tutorial (below) |
+| `ReportProblemButton`, `useReportContext`, `useReportProblem`, `ReportProvider` | Report a problem (below) |
 
 `@frc1678/grove-sdk/groups` exports the group vocabulary for frontends, and
 `@frc1678/grove-sdk/theme.css` is the Grove's Tailwind theme (add
@@ -158,6 +160,107 @@ would call itself `Vxx.00` and look perfectly healthy. Any workflow that
 runs `bun run build` needs `fetch-depth: 0`; `resolveGroveVersion` prints a
 warning when it finds itself in a shallow clone rather than letting the
 label lie quietly.
+
+## Report a problem
+
+Every Grove app has a **Report a problem** button: a flag icon in the
+`GroveShell` header, and **Alt+Shift+R** (Option+Shift+R on a Mac)
+anywhere. It opens a sheet with a screenshot of what the person was looking
+at, a pen to circle the problem, a line of text, and a Bug / Idea toggle.
+The report goes to the Grove, which files it and posts it to Slack.
+
+What a report carries without anyone typing it:
+
+- the app's slug and build (`V03.07`), the full URL, the viewport and DPR,
+  the browser, and a device class (phone / tablet / desktop);
+- the last 20 `console.error` calls, uncaught errors, and unhandled
+  rejections — which include the Convex function errors the client saw,
+  because the Convex client logs those through `console.error`;
+- the screenshot with the drawing burned in. Visible `<canvas>` elements
+  are in it (Sim's field is), except a WebGL canvas without
+  `preserveDrawingBuffer`, which reads back blank;
+- whatever the app adds with `useReportContext`;
+- the reporter, taken by the Grove from the token — never sent by the app.
+
+When the Grove has a Sentry DSN configured, the SDK also loads Sentry (only
+then — an app on a Grove without one never downloads it). Errors are
+captured with a release of `<slug>@<version>`, and the minute of session
+replay before a report or an error is sent with it. Sentry sees the Grove
+user id and role, never a name or email.
+
+**Wiring.** `GroveProvider` does it all; pass it the version so reports
+name their build, even if `GroveShell` already shows it:
+
+```tsx
+<GroveProvider groveUrl={…} appUrl={…} appName="Sim" version={APP_VERSION}>
+```
+
+The slug defaults to the first segment of Vite's `base` (`"/sim/"` →
+`sim`); pass `appSlug` if the app is registered under another one. The
+sheet is styled with the theme's classes, so the `@source` line above is
+required for it too.
+
+**Your own header.** Apps that don't use `GroveShell` put the button
+wherever the header has room; it renders nothing outside `GroveProvider`:
+
+```tsx
+<ReportProblemButton />                       // icon-only, like TutorialButton
+<ReportProblemButton className="…">Report a problem</ReportProblemButton>
+const report = useReportProblem()             // report?.open() from a menu item
+```
+
+**App context.** Hand over state that would help someone reproduce the
+problem. The function runs when a report opens, not on every render, so it
+can be expensive; values from every mounted caller are merged.
+
+```tsx
+// Sim: the lobby, the match, and the replay input log, so a fixer can
+// re-run the match headlessly and watch the bug happen.
+useReportContext(() => ({
+  lobbyId,
+  matchId,
+  replayLog: recorder.log(),
+}))
+```
+
+The Grove stores the first 20,000 characters of it; Sentry gets it whole.
+
+**The Grove itself** has its own provider tree, so it imports the pieces
+from `@frc1678/grove-sdk/report` (`ReportProvider`, `ReportProblemButton`,
+`useReportContext`, `useReportProblem`) without `GroveProvider`.
+
+### Telling the Grove what shipped
+
+After each deploy, the app tells the Grove which commit went live, so the
+Grove — which holds the Slack token — can mark every report fixed in it as
+shipped. Add to `convex/grove.ts`:
+
+```ts
+import { notifyGroveDeployed } from "@frc1678/grove-sdk/server"
+
+// Run by deploy.yml after `bun run deploy`.
+export const reportDeployed = internalAction({
+  args: { sha: v.string(), version: v.optional(v.string()) },
+  handler: (_ctx, args) => notifyGroveDeployed(args),
+})
+```
+
+and to `.github/workflows/deploy.yml`, after the `bun run deploy` step:
+
+```yaml
+      - name: Tell the Grove what shipped
+        # A notice, not part of the deploy: if the Grove is down, the
+        # deploy still succeeded and should say so.
+        continue-on-error: true
+        run: |
+          VERSION=$(bun -e 'import { resolveGroveVersion } from "@frc1678/grove-sdk/build"; import { APP_MAJOR } from "./src/version.ts"; console.log(resolveGroveVersion({ major: APP_MAJOR }).label)')
+          bunx convex run grove:reportDeployed "{\"sha\":\"$GITHUB_SHA\",\"version\":\"$VERSION\"}"
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+```
+
+The version is computed the same way the build computes the header's, so it
+needs the same `fetch-depth: 0` checkout the deploy job already has.
 
 ## How trust works
 

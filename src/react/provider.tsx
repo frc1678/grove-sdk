@@ -20,6 +20,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { appSlugFromBase } from "../report/context";
+import { ReportProvider } from "../report";
+import { groveApi } from "./api";
 
 // One provider gives an app both halves of the Grove contract:
 //
@@ -72,6 +75,14 @@ export type GroveProviderProps = {
   appUrl: string;
   appName: string;
   signInPath?: string;
+  // "V03.07", from the app's src/app-version.ts. Problem reports name the
+  // build they were filed from with it, so pass it here even when the
+  // header already shows it through GroveShell.
+  version?: string;
+  // The slug the app is registered under in Admin → Apps. Defaults to the
+  // first segment of Vite's base ("/sim/" → "sim"), which every app already
+  // sets so the Grove can serve it under /<slug>.
+  appSlug?: string;
   children: ReactNode;
 };
 
@@ -80,6 +91,8 @@ export function GroveProvider({
   appUrl,
   appName,
   signInPath = "/sign-in",
+  version,
+  appSlug = appSlugFromBase(import.meta.env.BASE_URL),
   children,
 }: GroveProviderProps) {
   const clients = useMemo(
@@ -97,7 +110,9 @@ export function GroveProvider({
         appName={appName}
         signInPath={signInPath}
       >
-        {children}
+        <GroveReport app={appSlug} version={version}>
+          {children}
+        </GroveReport>
       </GroveAuthCapture>
     </ConvexAuthProvider>
   );
@@ -209,6 +224,31 @@ export function useGroveTokenBridge() {
   return useMemo(
     () => ({ isLoading, isAuthenticated, fetchAccessToken }),
     [isLoading, isAuthenticated, fetchAccessToken],
+  );
+}
+
+// Problem reports go to the Grove through its client, tagged with the
+// signed-in account. users.me is the same query RequireSignedIn and
+// GroveShell read, and the Convex client shares one subscription between
+// identical watches, so this costs nothing on the wire.
+function GroveReport({
+  app,
+  version,
+  children,
+}: {
+  app: string;
+  version?: string;
+  children: ReactNode;
+}) {
+  const { grove, isAuthenticated } = useGrove();
+  const me = useGroveQuery(groveApi.users.me, isAuthenticated ? {} : "skip");
+  const id = me?._id;
+  const role = me?.effectiveRole ?? me?.role;
+  const user = useMemo(() => (id === undefined ? null : { id, role }), [id, role]);
+  return (
+    <ReportProvider client={grove} app={app} version={version} user={user}>
+      {children}
+    </ReportProvider>
   );
 }
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ReportProblemButton } from "../report";
 import { GroveIcon } from "./GroveIcon";
 import { useMe } from "./guards";
 import { useGrove } from "./provider";
@@ -92,7 +93,9 @@ export function GroveShell({
             {/* Icon-only and shrink-0, for the same reason the comment above
                 gives: this cluster has a phone's width to work with, and a
                 labelled "Tutorial" button spends it. It renders nothing
-                until a tutorial registers itself. */}
+                until a tutorial registers itself; the report button renders
+                nothing outside GroveProvider's report provider. */}
+            <ReportProblemButton />
             <TutorialButton />
             {me && (
               <span
