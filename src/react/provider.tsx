@@ -22,7 +22,7 @@ import {
 } from "react";
 import { appSlugFromBase } from "../report/context";
 import { ReportProvider } from "../report";
-import { groveApi } from "./api";
+import { groveApi, type Me } from "./api";
 
 // One provider gives an app both halves of the Grove contract:
 //
@@ -231,6 +231,11 @@ export function useGroveTokenBridge() {
 // signed-in account. users.me is the same query RequireSignedIn and
 // GroveShell read, and the Convex client shares one subscription between
 // identical watches, so this costs nothing on the wire.
+//
+// Watched directly rather than through useGroveQuery, which rethrows a
+// query error: this sits above every app's routes and error boundaries,
+// and a failed lookup that only feeds Sentry's user field must never take
+// the whole app down with it.
 function GroveReport({
   app,
   version,
@@ -241,10 +246,32 @@ function GroveReport({
   children: ReactNode;
 }) {
   const { grove, isAuthenticated } = useGrove();
-  const me = useGroveQuery(groveApi.users.me, isAuthenticated ? {} : "skip");
-  const id = me?._id;
-  const role = me?.effectiveRole ?? me?.role;
-  const user = useMemo(() => (id === undefined ? null : { id, role }), [id, role]);
+  const [me, setMe] = useState<{ id: string; role?: string } | null>(null);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMe(null);
+      return;
+    }
+    const watch = (grove.watchQuery as (q: unknown, a: unknown) => Watch<Me | null>)(
+      groveApi.users.me,
+      {},
+    );
+    const read = () => {
+      try {
+        const value = watch.localQueryResult();
+        if (value === undefined) return;
+        setMe((current) => {
+          const next = value === null ? null : { id: value._id, role: value.effectiveRole ?? value.role };
+          return current?.id === next?.id && current?.role === next?.role ? current : next;
+        });
+      } catch {
+        // No user tag on Sentry events is the whole cost of a failure here.
+      }
+    };
+    read();
+    return watch.onUpdate(read);
+  }, [grove, isAuthenticated]);
+  const user = me;
   return (
     <ReportProvider client={grove} app={app} version={version} user={user}>
       {children}
