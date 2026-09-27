@@ -14,6 +14,7 @@
     "./build": "./src/build/version.js",
     "./react": "./src/react/index.tsx",
     "./client": "./src/client/index.ts",
+    "./report": "./src/report/index.ts",
     "./theme.css": "./src/theme.css",
     "./package.json": "./package.json",
     "./groups": "./src/server/subteams.ts"
@@ -61,5 +62,9 @@
     "react-dom": "^19.2.8",
     "typescript": "~6.0.2",
     "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "@sentry/browser": "^11.0.0",
+    "modern-screenshot": "^4.7.0"
   }
 }
