@@ -1,0 +1,32 @@
+name: CI
+
+# The SDK's pre-merge gate. Every Grove app installs this package straight
+# from git, so a break merged here reaches all of them on their next install.
+#
+# The job is named `check` like every other Grove repo's, because the
+# required-status-check rule and the fixer's "merge only on green CI" both
+# look for that name. A PR with no checks at all is never treated as green.
+#
+# There is no build step: the package ships its source (see `files` in
+# package.json), so typecheck is the compile check.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
