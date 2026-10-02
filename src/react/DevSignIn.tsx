@@ -5,7 +5,12 @@ import { useGrove } from "./provider";
 // own /sign-in page is the only login on the origin; this exists because a
 // Vite dev server on localhost can't read the Grove's session.
 export function DevSignIn() {
-  const { signIn, appName } = useGrove();
+  const { signIn, appName, groveUrl } = useGrove();
+  // Which Grove this form signs into. The seeded dev accounts exist only on
+  // the Grove dev deployment, so a production host here means the app's
+  // .env.development override is missing and a "wrong password" is really
+  // the wrong Grove.
+  const groveHost = hostOf(groveUrl);
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +41,9 @@ export function DevSignIn() {
         <p className="mt-1 text-sm text-muted-foreground">
           Dev sign-in with your Grove account. In production the Grove handles
           this.
+        </p>
+        <p className="mt-1 font-mono text-xs text-muted-foreground" data-testid="grove-host">
+          Grove: {groveHost}
         </p>
         <label className="mt-4 grid gap-1 text-sm">
           Email
@@ -75,4 +83,12 @@ export function DevSignIn() {
       </form>
     </div>
   );
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
 }
