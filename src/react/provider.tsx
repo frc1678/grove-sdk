@@ -20,6 +20,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { appSlugFromBase } from "../report/context";
+import { ReportProvider } from "../report";
+import { groveApi, type Me } from "./api";
 
 // One provider gives an app both halves of the Grove contract:
 //
@@ -55,7 +58,8 @@ export type GroveContextValue = {
   waitForNewToken: (previous: string | null, timeoutMs: number) => Promise<string | null>;
 };
 
-const GroveContext = createContext<GroveContextValue | null>(null);
+/** @internal Exported for tests; not re-exported from the package entry. */
+export const GroveContext = createContext<GroveContextValue | null>(null);
 
 export function useGrove(): GroveContextValue {
   const value = useContext(GroveContext);
@@ -74,6 +78,14 @@ export type GroveProviderProps = {
   appUrl: string;
   appName: string;
   signInPath?: string;
+  // "V03.07", from the app's src/app-version.ts. Problem reports name the
+  // build they were filed from with it, so pass it here even when the
+  // header already shows it through GroveShell.
+  version?: string;
+  // The slug the app is registered under in Admin → Apps. Defaults to the
+  // first segment of Vite's base ("/sim/" → "sim"), which every app already
+  // sets so the Grove can serve it under /<slug>.
+  appSlug?: string;
   children: ReactNode;
 };
 
@@ -82,6 +94,8 @@ export function GroveProvider({
   appUrl,
   appName,
   signInPath = "/sign-in",
+  version,
+  appSlug = appSlugFromBase(import.meta.env.BASE_URL),
   children,
 }: GroveProviderProps) {
   const clients = useMemo(
@@ -100,7 +114,9 @@ export function GroveProvider({
         appName={appName}
         signInPath={signInPath}
       >
-        {children}
+        <GroveReport app={appSlug} version={version}>
+          {children}
+        </GroveReport>
       </GroveAuthCapture>
     </ConvexAuthProvider>
   );
@@ -191,21 +207,82 @@ function GroveAuthCapture({
 // Grove's provider rotates the JWT before it expires, so "fresh" usually
 // means "the one we already have"; when the app deployment rejects a token,
 // wait briefly for the rotation to land.
-function useGroveTokenBridge() {
-  const { isLoading, isAuthenticated, token, tokenRef, waitForNewToken } = useGrove();
+/** @internal Exported for tests; not re-exported from the package entry. */
+export function useGroveTokenBridge() {
+  const { isLoading, isAuthenticated, tokenRef, waitForNewToken } = useGrove();
   const fetchAccessToken = useCallback(
     async ({ forceRefreshToken }: { forceRefreshToken: boolean }) => {
       const current = tokenRef.current;
       if (!forceRefreshToken) return current;
       return await waitForNewToken(current, 8000);
     },
-    // Re-created when the token rotates so the app client is told promptly.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [token, tokenRef, waitForNewToken],
+    // Deliberately stable across a token rotation, which is why `token` is not
+    // a dependency. ConvexProviderWithAuth keeps this callback in an effect's
+    // dependencies, so re-creating it tears that effect down, and the cleanup
+    // reports the app client unauthenticated until the app deployment has
+    // verified the new token — every page behind RequireSignedIn unmounts and
+    // remounts in that window, losing its state. Nothing needs the rotation
+    // pushed: tokenRef is kept current during render, and Convex's own client
+    // schedules a forceRefreshToken refetch before the JWT expires, which
+    // waitForNewToken answers with the rotated token. Sign-out and sign-in
+    // still flip isAuthenticated, which re-runs Convex's effect as it should.
+    [tokenRef, waitForNewToken],
   );
   return useMemo(
     () => ({ isLoading, isAuthenticated, fetchAccessToken }),
     [isLoading, isAuthenticated, fetchAccessToken],
+  );
+}
+
+// Problem reports go to the Grove through its client, tagged with the
+// signed-in account. users.me is the same query RequireSignedIn and
+// GroveShell read, and the Convex client shares one subscription between
+// identical watches, so this costs nothing on the wire.
+//
+// Watched directly rather than through useGroveQuery, which rethrows a
+// query error: this sits above every app's routes and error boundaries,
+// and a failed lookup that only feeds Sentry's user field must never take
+// the whole app down with it.
+function GroveReport({
+  app,
+  version,
+  children,
+}: {
+  app: string;
+  version?: string;
+  children: ReactNode;
+}) {
+  const { grove, isAuthenticated } = useGrove();
+  const [me, setMe] = useState<{ id: string; role?: string } | null>(null);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMe(null);
+      return;
+    }
+    const watch = (grove.watchQuery as (q: unknown, a: unknown) => Watch<Me | null>)(
+      groveApi.users.me,
+      {},
+    );
+    const read = () => {
+      try {
+        const value = watch.localQueryResult();
+        if (value === undefined) return;
+        setMe((current) => {
+          const next = value === null ? null : { id: value._id, role: value.effectiveRole ?? value.role };
+          return current?.id === next?.id && current?.role === next?.role ? current : next;
+        });
+      } catch {
+        // No user tag on Sentry events is the whole cost of a failure here.
+      }
+    };
+    read();
+    return watch.onUpdate(read);
+  }, [grove, isAuthenticated]);
+  const user = me;
+  return (
+    <ReportProvider client={grove} app={app} version={version} user={user}>
+      {children}
+    </ReportProvider>
   );
 }
 
