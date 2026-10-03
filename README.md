@@ -151,11 +151,12 @@ One number, so a functional change big enough to need a new tutorial slide
 also moves the version people see, and bumping it shows everyone who has
 used the app before that version's changelog entry.
 
-`yy` is the number of commits on `main` since `src/version.ts` last changed.
-Because that file holds only the major, "the last commit that touched it" is
-exactly "the last time the major moved" — there is no diff to parse and no
-counter to remember, and a merge that changes nothing else still moves the
-version.
+`yy` is the number of commits on `main` since the commit that last changed
+the `export const APP_MAJOR =` line. Git finds that commit itself
+(`git log -G`), so there is no counter to remember, a merge that changes
+nothing else still moves the version, and editing the file's comment does
+not reset anything. (It used to count from any change to the file; one
+reworded comment put four apps back to `.00`.)
 
 ```ts
 // vite.config.ts

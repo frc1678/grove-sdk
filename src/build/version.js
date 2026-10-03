@@ -10,10 +10,13 @@ export { formatGroveVersion };
 //       change, and bumping it shows returning users that version's
 //       "What's new" entry. That is the major.
 //
-//   yy  commits on main since src/version.ts last changed. Because that
-//       file holds the major and nothing else, "last commit that touched
-//       it" is exactly "last time the major moved" — no diff to parse, no
-//       counter to remember, and a merge that changes nothing else still
+//   yy  commits on main since the commit that last changed the
+//       `const APP_MAJOR =` line in src/version.ts. Counting from any change
+//       to the file looked equivalent while the file held nothing but the
+//       constant, and stopped being so the first time someone edited its
+//       comment: four apps' badges went back to .00 in one afternoon over a
+//       reworded sentence. Git finds the line (`log -G`), so there is still
+//       no counter to remember, and a merge that changes nothing else still
 //       moves the version.
 //
 // Used from vite.config.ts:
@@ -36,6 +39,11 @@ export { formatGroveVersion };
 // node_modules, and refuses to strip types from anything under there.
 
 export const MAJOR_FILE = "src/version.ts";
+
+// What `git log -G` looks for in the file's history: a diff that adds or
+// removes the constant's line. Basic-regex safe on purpose, since -G's
+// flavour follows the user's git config.
+export const MAJOR_LINE = "const APP_MAJOR *=";
 
 function git(args, cwd) {
   try {
@@ -68,9 +76,16 @@ export function resolveGroveVersion({ major, cwd = process.cwd(), majorFile = MA
     );
   }
 
-  const bumped = git(["log", "-1", "--format=%H", "--", majorFile], cwd);
+  // The last commit that moved the major. Fall back to the last commit that
+  // touched the file at all only if no diff ever matched the line — an app
+  // that spells the constant some other way still gets a counting badge.
+  const lastMatch = (args) => {
+    const sha = git(["log", "-1", "--format=%H", ...args, "--", majorFile], cwd);
+    return sha === null || sha === "" ? null : sha;
+  };
+  const bumped = lastMatch([`-G${MAJOR_LINE}`]) ?? lastMatch([]);
   const minor =
-    bumped === null || bumped === ""
+    bumped === null
       ? 0
       : parseCommitCount(git(["rev-list", "--count", `${bumped}..HEAD`], cwd));
 

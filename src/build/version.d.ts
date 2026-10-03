@@ -12,6 +12,8 @@ export type ResolveOptions = {
 };
 
 export declare const MAJOR_FILE: string;
+/** The pattern `git log -G` uses to find the commit that last moved the major. */
+export declare const MAJOR_LINE: string;
 export declare function formatGroveVersion(major: number, minor: number): string;
 export declare function resolveGroveVersion(options: ResolveOptions): GroveVersion;
 /** Spread this into an existing `define` — a second key silently wins. */
