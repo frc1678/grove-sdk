@@ -57,7 +57,7 @@ roster entry id (strings).
 | `useGrove()` | Both clients, auth state, `signIn`, `signOut` |
 | `useGroveQuery(groveApi.roster.list, { year })` | Live Grove queries from the browser |
 | `GroveShell`, `PendingScreen`, `Spinner`, `DevSignIn` | House chrome |
-| `GroveTutorial`, `TutorialSlide` | The first-run tutorial (below) |
+| `GroveTutorial`, `TutorialSlide`, `ChangelogEntry` | The first-run tutorial and the "What's new" note (below) |
 | `ReportProblemButton`, `useReportContext`, `useReportProblem`, `ReportProvider` | Report a problem (below) |
 
 `@frc1678/grove-sdk/groups` exports the group vocabulary for frontends, and
@@ -65,10 +65,12 @@ roster entry id (strings).
 `@source "../node_modules/@frc1678/grove-sdk/src";` to your CSS so the SDK's
 screens get their classes).
 
-## The first-run tutorial
+## The first-run tutorial, and what's new
 
-Every Grove app shows a short tutorial the first time someone opens it. The
-slides are the app's; the mechanism is here.
+Every Grove app shows a short tutorial the first time someone opens it, and
+a short "What's new" note — not the tutorial again — to people coming back
+after a major version bump. The slides and the changelog are the app's; the
+mechanism is here.
 
 ```ts
 // convex/schema.ts
@@ -85,16 +87,41 @@ export const markSeen = mutation({ …, handler: (ctx, a) => recordTutorialView(
   <GroveTutorial
     version={TUTORIAL_VERSION}
     slides={slides}
+    changelog={changelog}
     seenVersion={api.tutorial.seenVersion}
     markSeen={api.tutorial.markSeen}
   />
 </GroveShell>
 ```
 
-It opens itself when the stored version is missing or lower than `version`,
-and stays shut otherwise — so bumping `version` is how an app re-shows an
-updated tutorial to everyone. Skip and Done both record the version;
-someone who skips is not asked twice. Rendered inside `GroveShell`, it also
+Which one opens depends on the version the person last dismissed:
+
+| Stored version | Opens |
+| --- | --- |
+| none — first visit | the tutorial |
+| lower than `version` | "What's new": every changelog entry after the stored version, newest first, with a link to the full tutorial |
+| lower, but no entry covers the gap | nothing — a bump without an entry is silent rather than a re-run of the tutorial |
+| `version` or higher | nothing |
+
+```tsx
+// src/changelog.tsx — beside src/tutorial.tsx
+export const changelog: ChangelogEntry[] = [
+  {
+    version: 4, // the APP_MAJOR this shipped in
+    title: "Make-up meetings", // optional
+    changes: [
+      "Missed a required meeting? Make it up from My History.",
+      <>Leads can now hand a student the keys for <b>one</b> meeting.</>,
+    ],
+  },
+]
+```
+
+Add the entry in the same pull request that bumps `src/version.ts`; an
+entry whose version is above the build's is held back until the bump ships.
+Write it for someone who already uses the app: what is different, in a
+sentence each, not how the app works. Skip, Done, Got it and Escape all
+record the version, so nobody is shown the same thing twice. Rendered inside `GroveShell`, it also
 puts a help button in the header that reopens it; an app that renders no
 `<GroveTutorial>` gets no button.
 
@@ -121,8 +148,8 @@ export const TUTORIAL_VERSION = APP_MAJOR
 ```
 
 One number, so a functional change big enough to need a new tutorial slide
-also moves the version people see, and bumping it still re-shows the
-tutorial to everyone who dismissed the old one.
+also moves the version people see, and bumping it shows everyone who has
+used the app before that version's changelog entry.
 
 `yy` is the number of commits on `main` since `src/version.ts` last changed.
 Because that file holds only the major, "the last commit that touched it" is

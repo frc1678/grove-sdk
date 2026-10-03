@@ -14,8 +14,9 @@ import { requireActiveUser } from "./identity";
 // the roster mirror in roster.ts.
 //
 // A row means "this person is done with version N", whether they finished
-// it or skipped it. Bumping the app's version leaves the old rows behind
-// and shows everyone the new tutorial once.
+// the tutorial, skipped it, or read the "What's new" note for N. Bumping the
+// app's version leaves the old rows behind; <GroveTutorial> reads the newest
+// to decide between the tutorial (no rows) and the changelog (older rows).
 
 export const tutorialViewsTable = defineTable({
   // The Grove `users` id. People are never referenced by email.
