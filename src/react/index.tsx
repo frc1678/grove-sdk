@@ -33,7 +33,7 @@ export {
 } from "../report";
 // The Vxx.yy badge. Pass it the string from the app's src/app-version.ts.
 export { GroveVersionBadge } from "./VersionBadge";
-export { type TutorialSlide } from "./tutorialState";
+export { type ChangelogEntry, type TutorialSlide } from "./tutorialState";
 export {
   groveApi,
   type FeedbackSubmission,

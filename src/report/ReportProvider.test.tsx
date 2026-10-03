@@ -57,6 +57,13 @@ function fakeClient({
   return { client: client as unknown as ConvexReactClient, calls };
 }
 
+// The sheet's text box, once the dialog is actually open. The sheet calls
+// showModal() from an effect, and jsdom hides a <dialog> until it is open,
+// so a label or text query can resolve while every role query still misses
+// — on a slow CI runner it did, and "Bug" was not found. Role queries skip
+// hidden elements, so waiting on one waits for the open dialog.
+const openSheet = () => screen.findByRole("textbox", { name: "What happened?" });
+
 function MatchContext() {
   useReportContext(() => ({ matchId: "m42", replayLog: [1, 2, 3] }));
   return null;
@@ -99,7 +106,7 @@ describe("ReportProvider", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Report a problem" }));
-    const text = await screen.findByLabelText("What happened?");
+    const text = await openSheet();
     expect(screen.getByAltText("Screenshot of the page")).toBeDefined();
     expect(screen.getByRole("button", { name: "Bug" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Idea" }));
@@ -158,7 +165,7 @@ describe("ReportProvider", () => {
     // What a Mac sends: Option turns the key into "®", the code stays KeyR.
     fireEvent.keyDown(window, { key: "®", code: "KeyR", altKey: true, shiftKey: true });
     expect(await screen.findByText(/could not be captured/)).toBeDefined();
-    fireEvent.change(screen.getByLabelText("What happened?"), { target: { value: "broken" } });
+    fireEvent.change(await openSheet(), { target: { value: "broken" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     await screen.findByText("Sent — thanks");
 
@@ -184,7 +191,7 @@ describe("ReportProvider", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Report a problem" }));
-    const text = await screen.findByLabelText("What happened?");
+    const text = await openSheet();
     fireEvent.change(text, { target: { value: "It crashed" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
@@ -205,7 +212,7 @@ describe("ReportProvider", () => {
       </ReportProvider>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Report a problem" }));
-    await screen.findByLabelText("What happened?");
+    await openSheet();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByLabelText("What happened?")).toBeNull();
     expect(calls).toEqual([]);

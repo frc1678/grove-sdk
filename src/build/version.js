@@ -6,9 +6,9 @@ export { formatGroveVersion };
 // A Grove app's version is Vxx.yy, and neither half is typed by hand twice.
 //
 //   xx  the app's TUTORIAL_VERSION, which lives alone in src/version.ts.
-//       Bumping it re-shows the tutorial to everyone who dismissed the old
-//       one, so it already moves exactly when a functional change forces
-//       the tutorial to change. That is the major.
+//       It moves exactly when a functional change forces the tutorial to
+//       change, and bumping it shows returning users that version's
+//       "What's new" entry. That is the major.
 //
 //   yy  commits on main since src/version.ts last changed. Because that
 //       file holds the major and nothing else, "last commit that touched
