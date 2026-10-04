@@ -189,6 +189,34 @@ runs `bun run build` needs `fetch-depth: 0`; `resolveGroveVersion` prints a
 warning when it finds itself in a shallow clone rather than letting the
 label lie quietly.
 
+## The home-screen icon
+
+Adding an app to a phone's home screen takes the icon from a PNG
+`apple-touch-icon`; iOS ignores SVG there and draws a grey tile with the
+title's first letter instead. `groveHomeScreen()` draws those PNGs from the
+app's one icon, `public/favicon.svg`, on every build, so there is no second
+copy to go stale:
+
+```ts
+import { groveHomeScreen } from "@frc1678/grove-sdk/build"
+
+export default defineConfig({
+  plugins: [react(), tailwindcss(), groveHomeScreen()],
+})
+```
+
+It emits `apple-touch-icon.png` (180px), `icon-192.png`, `icon-512.png` and
+`manifest.webmanifest` at the root of the build, and adds their links and an
+`apple-mobile-web-app-title` to `index.html` under Vite's `base`. The dev
+server serves the same files. Each PNG is the favicon at 62.5% on the app
+shell's dark background (`#0a0a0a`); the name under the icon is
+`package.json`'s `grove.name` unless `{ name }` is passed. The build fails
+if `public/` also holds one of those files, since a hand-made copy is
+exactly what goes stale.
+
+A phone keeps the icon it saw when the app was added. After an icon change,
+remove the app from the home screen and add it again.
+
 ## Report a problem
 
 Every Grove app has a **Report a problem** button: a flag icon in the
