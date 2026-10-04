@@ -11,7 +11,7 @@
   },
   "exports": {
     "./server": "./src/server/index.ts",
-    "./build": "./src/build/version.js",
+    "./build": "./src/build/index.js",
     "./react": "./src/react/index.tsx",
     "./client": "./src/client/index.ts",
     "./report": "./src/report/index.ts",
@@ -64,6 +64,7 @@
     "vitest": "^4.1.11"
   },
   "dependencies": {
+    "@resvg/resvg-wasm": "^2.6.2",
     "@sentry/browser": "^11.0.0",
     "modern-screenshot": "^4.7.0"
   }
