@@ -12,8 +12,8 @@ import {
 import { groveApi } from "../react/api";
 import { buildReportContext, type ReportContext } from "./context";
 import { installErrorBuffer, recentErrors } from "./errorBuffer";
-import { ReportSheet } from "./ReportSheet";
-import { captureViewport } from "./screenshot";
+import { REPORT_SHEET_ATTRIBUTE, ReportSheet } from "./ReportSheet";
+import { captureViewport, preloadCapture } from "./screenshot";
 import { initGroveSentry, setGroveSentryUser } from "./sentry";
 
 // "Report a problem" in every Grove app: a screenshot to draw on, a line of
@@ -39,7 +39,8 @@ type ReportValue = {
 const ReportContextValue = createContext<ReportValue | null>(null);
 
 type OpenReport = {
-  screenshot: HTMLCanvasElement | null;
+  // undefined while the capture is still running, null if it failed.
+  screenshot: HTMLCanvasElement | null | undefined;
   context: ReportContext;
   fullJson: string;
 };
@@ -60,7 +61,12 @@ export type ReportProviderProps = {
 export function ReportProvider({ client, app, version, user, children }: ReportProviderProps) {
   const sources = useRef(new Set<ContextSource>());
   const [report, setReport] = useState<OpenReport | null>(null);
+  // Which open the running capture belongs to, so one that finishes after
+  // its sheet was closed — or after another opened — is dropped.
+  const openCount = useRef(0);
   const opening = useRef(false);
+
+  useEffect(preloadCapture, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,6 +94,7 @@ export function ReportProvider({ client, app, version, user, children }: ReportP
   const open = useCallback(async () => {
     if (opening.current) return;
     opening.current = true;
+    const thisOpen = ++openCount.current;
     // Context first, then the screenshot: both describe the moment the
     // button was pressed, and the capture takes long enough for that to
     // matter on a match clock.
@@ -104,20 +111,29 @@ export function ReportProvider({ client, app, version, user, children }: ReportP
       errors: recentErrors(),
       extra: collectExtra(sources.current),
     });
-    // Before the sheet renders, so the sheet is not in its own screenshot.
-    // A capture that fails still opens the sheet: the text is the report,
-    // the picture is a bonus.
+    // The sheet opens now and the screenshot fills in behind it. Capturing
+    // first left the button looking dead for as long as the capture took —
+    // seconds on a phone, on a long page — and people pressed it again or
+    // gave up. A capture that fails still leaves the sheet open: the text
+    // is the report, the picture is a bonus.
+    setReport({ screenshot: undefined, context, fullJson });
+    // Cloning the page holds the main thread until it is done, so the sheet
+    // has to be painted before it starts or it still appears only after.
+    await nextPaint();
+    if (openCount.current !== thisOpen) return;
     let screenshot: HTMLCanvasElement | null = null;
     try {
-      screenshot = await captureViewport();
+      screenshot = await captureViewport((element) => element.hasAttribute(REPORT_SHEET_ATTRIBUTE));
     } catch (error) {
       console.warn("[grove] could not capture the screen for a report", error);
     }
-    setReport({ screenshot, context, fullJson });
+    if (openCount.current !== thisOpen) return;
+    setReport((current) => (current === null ? null : { ...current, screenshot }));
   }, [version]);
 
   const close = useCallback(() => {
     opening.current = false;
+    openCount.current++;
     setReport(null);
   }, []);
 
@@ -157,6 +173,19 @@ export function ReportProvider({ client, app, version, user, children }: ReportP
       )}
     </ReportContextValue.Provider>
   );
+}
+
+// Resolves once the frame after this one has been painted: a
+// requestAnimationFrame callback runs just before a paint, and a task queued
+// from it runs just after. A hidden tab runs no frames at all, so it gives
+// up waiting after a few frames' worth of time.
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 100);
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => setTimeout(resolve, 0));
+    }
+  });
 }
 
 // Merged in registration order; a later key wins. One source that throws

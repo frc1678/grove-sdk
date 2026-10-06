@@ -27,6 +27,14 @@ const MAX_TEXT = 4000;
 // Pen width in CSS pixels of the sheet, whatever the screenshot's scale.
 const PEN_WIDTH = 4;
 const SENT_MESSAGE_MS = 1200;
+// How long Send waits for Sentry. Its replay upload retries a failed
+// request three times over 45 seconds, and an ad blocker, a school network
+// or Firefox's tracking protection fails every one: waiting it out left
+// "Sending…" up long enough that people closed the sheet and the report
+// was lost. Sentry is the extra; the Grove's row is the report.
+export const SENTRY_WAIT_MS = 4000;
+// Carried by the sheet, so the capture running behind it leaves it out.
+export const REPORT_SHEET_ATTRIBUTE = "data-grove-report";
 
 type Phase = "editing" | "sending" | "sent";
 
@@ -40,7 +48,8 @@ export function ReportSheet({
 }: {
   client: ConvexReactClient;
   app: string;
-  screenshot: HTMLCanvasElement | null;
+  // undefined while it is still being captured.
+  screenshot: HTMLCanvasElement | null | undefined;
   context: ReportContext;
   fullJson: string;
   onClose: () => void;
@@ -75,15 +84,32 @@ export function ReportSheet({
 
   const send = async () => {
     const message = text.trim();
-    if (message === "" || phase !== "editing") return;
+    if (message === "" || phase !== "editing" || screenshot === undefined) return;
     setPhase("sending");
     setError(null);
     try {
+      const blob = screenshot === null ? undefined : await flattenAnnotated(screenshot, strokes);
+      const png = blob === undefined ? undefined : new Uint8Array(await blob.arrayBuffer());
+      // Started before the upload rather than after it, so a working Sentry
+      // is normally done by the time the Grove is, and a blocked one costs
+      // SENTRY_WAIT_MS at most. A late answer still reaches Sentry; only the
+      // link from the Grove's row to it is lost.
+      const sentryEventId = withTimeout(
+        captureGroveFeedback({
+          message,
+          app,
+          kind,
+          url: context.url,
+          screenshot: png,
+          contextJson: fullJson,
+        }),
+        SENTRY_WAIT_MS,
+      ).catch((sentryError: unknown) => {
+        console.warn("[grove] Sentry did not take the report", sentryError);
+        return undefined;
+      });
       let storageId: string | undefined;
-      let png: Uint8Array | undefined;
-      if (screenshot !== null) {
-        const blob = await flattenAnnotated(screenshot, strokes);
-        png = new Uint8Array(await blob.arrayBuffer());
+      if (blob !== undefined) {
         const uploadUrl = await client.mutation(groveApi.feedback.generateUploadUrl, {});
         const response = await fetch(uploadUrl, {
           method: "POST",
@@ -93,25 +119,13 @@ export function ReportSheet({
         if (!response.ok) throw new Error(`Screenshot upload failed (${response.status})`);
         storageId = ((await response.json()) as { storageId: string }).storageId;
       }
-      // Sentry is the extra, the Grove's row is the report: an ad blocker
-      // that stops Sentry must not stop the report.
-      const sentryEventId = await captureGroveFeedback({
-        message,
-        app,
-        kind,
-        url: context.url,
-        screenshot: png,
-        contextJson: fullJson,
-      }).catch((sentryError: unknown) => {
-        console.warn("[grove] Sentry did not take the report", sentryError);
-        return undefined;
-      });
+      const eventId = await sentryEventId;
       await client.mutation(groveApi.feedback.submit, {
         app,
         kind,
         text: message,
         ...(storageId === undefined ? {} : { screenshot: storageId }),
-        ...(sentryEventId === undefined ? {} : { sentryEventId }),
+        ...(eventId === undefined ? {} : { sentryEventId: eventId }),
         context,
       });
       setPhase("sent");
@@ -127,11 +141,14 @@ export function ReportSheet({
     }
   };
 
-  const canSend = text.trim() !== "" && phase === "editing";
+  // Typing a sentence outlasts the capture, so this rarely holds anyone up;
+  // sending before it finished would silently drop the picture.
+  const canSend = text.trim() !== "" && phase === "editing" && screenshot !== undefined;
 
   return (
     <dialog
       ref={dialogRef}
+      {...{ [REPORT_SHEET_ATTRIBUTE]: "" }}
       aria-labelledby={headingId}
       // The UA gives a dialog a max-width, max-height and margins of its
       // own; each is replaced here so the phone sheet reaches both edges.
@@ -156,7 +173,9 @@ export function ReportSheet({
           </div>
 
           <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-5 py-4">
-            {screenshot === null ? (
+            {screenshot === undefined ? (
+              <CapturingPlaceholder viewport={context.viewport} />
+            ) : screenshot === null ? (
               <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
                 The screen could not be captured — describe what you see instead.
               </p>
@@ -229,6 +248,48 @@ export function ReportSheet({
         </form>
       )}
     </dialog>
+  );
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(undefined), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+// Holds the screenshot's place while it is captured. An empty SVG with the
+// viewport's proportions, styled exactly like the screenshot's <img>, sizes
+// itself the same way — so the sheet does not jump when the picture lands.
+function CapturingPlaceholder({ viewport }: { viewport: ReportContext["viewport"] }) {
+  const src = `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${viewport.width}" height="${viewport.height}"/>`,
+  )}`;
+  return (
+    <div className="flex justify-center rounded-lg bg-muted p-1">
+      <div className="relative">
+        <img
+          src={src}
+          alt=""
+          className="block h-auto max-h-[40svh] w-auto max-w-full rounded bg-background/60 sm:max-h-[50svh]"
+        />
+        <p
+          role="status"
+          className="absolute inset-0 flex animate-pulse items-center justify-center px-2 text-center text-sm text-muted-foreground"
+        >
+          Capturing the screen…
+        </p>
+      </div>
+    </div>
   );
 }
 

@@ -4,6 +4,7 @@ import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { ReportProblemButton, ReportProvider, useReportContext } from "./ReportProvider";
+import { SENTRY_WAIT_MS } from "./ReportSheet";
 import { captureViewport, flattenAnnotated } from "./screenshot";
 import { captureGroveFeedback, initGroveSentry, setGroveSentryUser } from "./sentry";
 
@@ -12,6 +13,7 @@ import { captureGroveFeedback, initGroveSentry, setGroveSentryUser } from "./sen
 vi.mock("./screenshot", () => ({
   STROKE_COLOR: "#ef4444",
   captureViewport: vi.fn(),
+  preloadCapture: vi.fn(),
   flattenAnnotated: vi.fn(async () => new Blob(["png"], { type: "image/png" })),
 }));
 vi.mock("./sentry", () => ({
@@ -107,7 +109,7 @@ describe("ReportProvider", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Report a problem" }));
     const text = await openSheet();
-    expect(screen.getByAltText("Screenshot of the page")).toBeDefined();
+    expect(await screen.findByAltText("Screenshot of the page")).toBeDefined();
     expect(screen.getByRole("button", { name: "Bug" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Idea" }));
     fireEvent.change(text, { target: { value: "  The score froze at 42  " } });
@@ -192,6 +194,7 @@ describe("ReportProvider", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Report a problem" }));
     const text = await openSheet();
+    await screen.findByText(/could not be captured/);
     fireEvent.change(text, { target: { value: "It crashed" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
@@ -216,6 +219,82 @@ describe("ReportProvider", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByLabelText("What happened?")).toBeNull();
     expect(calls).toEqual([]);
+  });
+
+  test("opens at once and fills the screenshot in behind the open sheet", async () => {
+    let finish!: (canvas: HTMLCanvasElement) => void;
+    vi.mocked(captureViewport).mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    const { client } = fakeClient();
+    render(
+      <ReportProvider client={client} app="chime">
+        <ReportProblemButton />
+      </ReportProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Report a problem" }));
+    const text = await openSheet();
+    expect(screen.getByText("Capturing the screen…")).toBeDefined();
+    // Sending now would drop the picture without saying so.
+    fireEvent.change(text, { target: { value: "It froze" } });
+    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty("disabled", true);
+
+    // The capture is told to leave the sheet out of its own picture, and
+    // starts only once the sheet has had a frame to paint in.
+    await waitFor(() => expect(captureViewport).toHaveBeenCalled());
+    const exclude = vi.mocked(captureViewport).mock.calls[0][0]!;
+    expect(exclude(document.querySelector("dialog")!)).toBe(true);
+    expect(exclude(screen.getByRole("button", { name: "Report a problem" }))).toBe(false);
+
+    await act(async () => finish(screenshot));
+    expect(screen.getByAltText("Screenshot of the page")).toBeDefined();
+    expect(screen.queryByText("Capturing the screen…")).toBeNull();
+    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty("disabled", false);
+  });
+
+  test("a capture that finishes after Cancel does not reopen the sheet", async () => {
+    let finish!: (canvas: HTMLCanvasElement) => void;
+    vi.mocked(captureViewport).mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    const { client } = fakeClient();
+    render(
+      <ReportProvider client={client} app="chime">
+        <ReportProblemButton />
+      </ReportProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Report a problem" }));
+    await openSheet();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await act(async () => finish(screenshot));
+    expect(screen.queryByLabelText("What happened?")).toBeNull();
+  });
+
+  test("a Sentry that never answers holds the report up only briefly", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(captureViewport).mockRejectedValue(new Error("no"));
+      // What a blocked replay upload looks like from here: no answer for 45s.
+      vi.mocked(captureGroveFeedback).mockReturnValue(new Promise(() => {}));
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const { client, calls } = fakeClient();
+      render(
+        <ReportProvider client={client} app="grove">
+          <ReportProblemButton />
+        </ReportProvider>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Report a problem" }));
+      fireEvent.change(await openSheet(), { target: { value: "Ideas will not send" } });
+      await screen.findByText(/could not be captured/);
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+      await act(async () => vi.advanceTimersByTimeAsync(SENTRY_WAIT_MS - 100));
+      expect(calls).toEqual([]);
+      await act(async () => vi.advanceTimersByTimeAsync(200));
+      expect(await screen.findByText("Sent — thanks")).toBeDefined();
+      expect(calls.map((call) => call.name)).toEqual(["feedback:submit"]);
+      expect(calls[0].args).not.toHaveProperty("sentryEventId");
+      warn.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   test("starts Sentry only when the Grove has a DSN, and tags the user", async () => {

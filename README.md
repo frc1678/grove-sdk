@@ -242,7 +242,15 @@ When the Grove has a Sentry DSN configured, the SDK also loads Sentry (only
 then — an app on a Grove without one never downloads it). Errors are
 captured with a release of `<slug>@<version>`, and the minute of session
 replay before a report or an error is sent with it. Sentry sees the Grove
-user id and role, never a name or email.
+user id and role, never a name or email. Sending never waits on Sentry
+for more than four seconds: a browser that blocks it (an ad blocker, a
+school network) still files the report with the Grove, just without the
+replay link.
+
+The sheet opens on the press and the screenshot fills in behind it.
+Cloning the page for the picture takes time in proportion to the whole
+document — a couple of seconds on a phone on a long page — so a page with
+thousands of rows makes the picture slow, not the button.
 
 **Wiring.** `GroveProvider` does it all; pass it the version so reports
 name their build, even if `GroveShell` already shows it:
