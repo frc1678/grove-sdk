@@ -126,7 +126,7 @@ export function TableToolbar({ search, filters = [], sort, group, more, count, p
     <div className="grid min-w-0 grid-cols-1 gap-2">
       <div className="flex min-w-0 items-center gap-1.5">
         {search !== undefined && (
-          <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-input px-2.5 text-muted-foreground focus-within:ring-2 focus-within:ring-ring/50 sm:h-8 sm:max-w-80">
+          <label data-tour="toolbar-search" className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-input px-2.5 text-muted-foreground focus-within:ring-2 focus-within:ring-ring/50 sm:h-8 sm:max-w-80">
             <SearchIcon className="size-4 shrink-0" />
             <input
               type="search"
@@ -141,6 +141,7 @@ export function TableToolbar({ search, filters = [], sort, group, more, count, p
         {filters.length > 0 && <FilterButton filters={filters} onClearAll={clearAll} />}
         {sort !== undefined && (
           <GroveMenu
+            tourId="toolbar-sort"
             label="Sort"
             align="start"
             buttonClassName={`${BUTTON} ${sorted ? ON : IDLE}`}
@@ -175,6 +176,7 @@ export function TableToolbar({ search, filters = [], sort, group, more, count, p
         )}
         {group !== undefined && (
           <GroveMenu
+            tourId="toolbar-group"
             label="Group"
             align="start"
             buttonClassName={`${BUTTON} ${grouped ? ON : IDLE}`}
@@ -202,6 +204,7 @@ export function TableToolbar({ search, filters = [], sort, group, more, count, p
         )}
         {more !== undefined && (
           <GroveMenu
+            tourId="toolbar-more"
             label="More"
             buttonClassName={`${BUTTON} ${IDLE} sm:w-8 sm:px-0`}
             button={<MoreIcon className="size-4" />}
@@ -217,6 +220,7 @@ export function TableToolbar({ search, filters = [], sort, group, more, count, p
             type="button"
             onClick={primary.onClick}
             title={primary.label}
+            data-tour="toolbar-primary"
             className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 sm:h-8 sm:px-3 max-sm:w-9 ${count === undefined ? "ml-auto" : ""}`}
           >
             {primary.icon ?? <PlusIcon className="size-4" />}
@@ -340,6 +344,7 @@ function FilterButton({ filters, onClearAll }: { filters: ToolbarFilter[]; onCle
         type="button"
         onClick={show}
         title="Filter"
+        data-tour="toolbar-filter"
         aria-haspopup="dialog"
         aria-expanded={open}
         className={`${BUTTON} ${count > 0 ? ON : IDLE}`}

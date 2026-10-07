@@ -11,7 +11,9 @@ import { createContext, useContext } from "react";
 // shows exactly what exists. Optional so a slot built before it existed
 // still type-checks.
 export type TutorialSlot = {
-  register: (open: (() => void) | null) => void;
+  // `label` names the menu item ("Take the tour"); omitted, the shell says
+  // "How <app> works".
+  register: (open: (() => void) | null, label?: string) => void;
   registerChangelog?: (open: (() => void) | null) => void;
 };
 
@@ -40,4 +42,11 @@ export const ChangelogOpenContext = createContext<(() => void) | null>(null);
 
 export function useOpenChangelog(): (() => void) | null {
   return useContext(ChangelogOpenContext);
+}
+
+// What the menu calls the way back in, when the tutorial named it.
+export const TutorialLabelContext = createContext<string | undefined>(undefined);
+
+export function useTutorialLabel(): string | undefined {
+  return useContext(TutorialLabelContext);
 }

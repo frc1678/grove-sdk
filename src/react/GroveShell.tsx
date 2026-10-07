@@ -5,6 +5,7 @@ import { GroveMenu, GroveMenuItem, GroveMenuLabel, GroveMenuSeparator } from "./
 import { useMe } from "./guards";
 import {
   BookIcon,
+  CompassIcon,
   ExternalIcon,
   FlagIcon,
   LogOutIcon,
@@ -17,7 +18,7 @@ import {
 import { PageTitleSlot, type NavBreakpoint } from "./PageTitle";
 import { useGrove } from "./provider";
 import { TutorialProvider } from "./tutorialChrome";
-import { useOpenChangelog, useReopenTutorial } from "./tutorialSlot";
+import { useOpenChangelog, useReopenTutorial, useTutorialLabel } from "./tutorialSlot";
 import { GroveVersionBadge } from "./VersionBadge";
 
 // The house chrome every Grove app shares, first built in Parts: one short
@@ -72,6 +73,7 @@ export type GroveLinkProps = {
   role?: string;
   title?: string;
   "aria-current"?: "page";
+  "data-tour"?: string;
 };
 
 export type GroveShellProps = {
@@ -202,7 +204,9 @@ function Shell({
   const section = sectionName(nav, pathname);
   const major = majorOf(version);
   const who = me?.name ?? me?.email ?? "Signed in";
-  const tutorialLabel = `How ${label} works`;
+  const namedLabel = useTutorialLabel();
+  const tutorialLabel = namedLabel ?? `How ${label} works`;
+  const touring = namedLabel !== undefined;
   const flagged = nav.some((item) => item.badge !== undefined && item.badge !== null && item.badge !== false);
 
   const navLink = (item: GroveNavItem, extra: Omit<GroveLinkProps, "to">) => (
@@ -256,6 +260,7 @@ function Shell({
               return (
                 <span key={item.to} className="contents">
                   {navLink(item, {
+                    "data-tour": `nav:${item.to}`,
                     className: `flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
                       active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
                     }`,
@@ -282,6 +287,7 @@ function Shell({
               </div>
             )}
             <GroveMenu
+              tourId="menu"
               label={flagged ? "Menu, something needs attention" : "Menu"}
               button={
                 <>
@@ -324,7 +330,7 @@ function Shell({
                 </div>
               )}
               {reopenTutorial !== null && (
-                <GroveMenuItem icon={<BookIcon />} onSelect={reopenTutorial}>
+                <GroveMenuItem icon={touring ? <CompassIcon /> : <BookIcon />} onSelect={reopenTutorial}>
                   {tutorialLabel}
                 </GroveMenuItem>
               )}

@@ -52,6 +52,9 @@ export { PageHeader, PageTitle, type NavBreakpoint } from "./PageTitle";
 export { TutorialButton, TutorialProvider } from "./tutorialChrome";
 export { useOpenChangelog, useReopenTutorial } from "./tutorialSlot";
 export { GroveTutorial, type GroveTutorialProps } from "./GroveTutorial";
+// The guided tour: steps that walk through the app itself (see GroveTour.tsx
+// for the data-tour names the shell and toolbar carry).
+export { GroveTour, type TourStep } from "./GroveTour";
 // "Report a problem". GroveProvider already wraps the app in the provider
 // and GroveShell shows the button; apps with their own header place
 // ReportProblemButton themselves.

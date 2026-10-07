@@ -19,7 +19,7 @@ vi.mock("./guards", () => ({ useMe: () => ({ status: "active" }) }));
 
 const { GroveTutorial } = await import("./GroveTutorial");
 const { TutorialProvider } = await import("./tutorialChrome");
-const { useOpenChangelog } = await import("./tutorialSlot");
+const { useOpenChangelog, useTutorialLabel } = await import("./tutorialSlot");
 
 const seenVersion = "tutorial:seenVersion" as unknown as FunctionReference<
   "query",
@@ -162,5 +162,43 @@ describe("GroveTutorial", () => {
   test("the note after a bump links to the rest of the history", () => {
     mount(2);
     expect(screen.getByText("See every version")).toBeDefined();
+  });
+
+  test("with a tour, a first visit starts the tour instead of the slides", () => {
+    state.seen = null;
+    render(
+      <GroveTutorial
+        version={3}
+        slides={slides}
+        tour={[{ title: "Welcome to the tour", body: "step one" }]}
+        changelog={changelog}
+        seenVersion={seenVersion}
+        markSeen={markSeen}
+      />,
+    );
+    expect(screen.getByText("Welcome to the tour")).toBeDefined();
+    const slidesDialog = screen
+      .getAllByRole("dialog", { hidden: true })
+      .find((dialog) => dialog.getAttribute("aria-label") !== "Chime tour") as HTMLDialogElement;
+    expect(slidesDialog.open).toBe(false);
+  });
+
+  test("with a tour, the menu's way back in is called Take the tour", () => {
+    state.seen = 3;
+    function Label() {
+      return <span data-testid="label">{useTutorialLabel() ?? "none"}</span>;
+    }
+    render(
+      <TutorialProvider>
+        <Label />
+        <GroveTutorial
+          version={3}
+          tour={[{ title: "Welcome to the tour", body: "step one" }]}
+          seenVersion={seenVersion}
+          markSeen={markSeen}
+        />
+      </TutorialProvider>,
+    );
+    expect(screen.getByTestId("label").textContent).toBe("Take the tour");
   });
 });
