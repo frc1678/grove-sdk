@@ -71,6 +71,12 @@ export type TableToolbarProps = {
   // Extra chips the page wants on the chip row (a non-filter state like
   // "Abandoned shown").
   chips?: ReactNode;
+  // Clears every filter in one go. Pages whose filters live in the URL need
+  // it: clearing them one by one calls the router's setSearchParams once per
+  // filter, each built from the same render's params, so only the last one
+  // sticks. Without it, Clear all calls each filter's onChange([]) in turn,
+  // which is fine for state held in useState.
+  onClearAll?: () => void;
 };
 
 function isActive(filter: ToolbarFilter): boolean {
@@ -101,13 +107,17 @@ const BUTTON =
 const IDLE = "border-input text-foreground/90 hover:bg-accent";
 const ON = "border-sky-500/50 bg-sky-500/10 text-sky-700 dark:text-sky-300";
 
-export function TableToolbar({ search, filters = [], sort, group, more, count, primary, chips }: TableToolbarProps) {
+export function TableToolbar({ search, filters = [], sort, group, more, count, primary, chips, onClearAll }: TableToolbarProps) {
   const activeFilters = filters.filter(isActive);
   const sorted =
     sort !== undefined && (sort.value.key !== sort.defaultKey || sort.value.dir !== (sort.defaultDir ?? 1));
   const grouped = group !== undefined && group.value !== group.noneKey;
   const groupLabel = group?.options.find((option) => option.key === group.value)?.label;
   const clearAll = () => {
+    if (onClearAll !== undefined) {
+      onClearAll();
+      return;
+    }
     for (const filter of activeFilters) clear(filter);
   };
   const showChips = activeFilters.length > 0 || sorted || chips !== undefined;

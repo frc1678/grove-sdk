@@ -148,4 +148,21 @@ describe("TableToolbar", () => {
     rerender(<TableToolbar sort={sort(1)} />);
     expect(screen.getByLabelText("Back to the usual order")).toBeDefined();
   });
+
+  test("a page that clears its filters in one go is asked to, instead of each filter in turn", () => {
+    let all = 0;
+    const each: string[] = [];
+    render(
+      <TableToolbar
+        onClearAll={() => (all += 1)}
+        filters={[
+          { key: "a", label: "A", options: STATUS, values: ["ready"], onChange: () => each.push("a") },
+          { key: "b", label: "B", options: STATUS, values: ["made"], onChange: () => each.push("b") },
+        ]}
+      />,
+    );
+    fireEvent.click(within(screen.getByRole("group", { name: "Active filters" })).getByText("Clear all"));
+    expect(all).toBe(1);
+    expect(each).toEqual([]);
+  });
 });
