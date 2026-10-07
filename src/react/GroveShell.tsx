@@ -7,9 +7,9 @@ import {
   BookIcon,
   ExternalIcon,
   FlagIcon,
-  HelpIcon,
   LogOutIcon,
   MenuIcon,
+  MonitorIcon,
   MoonIcon,
   SparklesIcon,
   SunIcon,
@@ -24,11 +24,12 @@ import { GroveVersionBadge } from "./VersionBadge";
 // row with the app's mark, name and version on the left; the page's name
 // in the middle while the nav is folded away; and a menu on the right.
 //
-// - Phone: the menu holds everything — the nav, the tutorial, What's new,
-//   Report a problem, the way back to the Grove, the theme, and sign out —
-//   so the header is never more than one row of 48px.
-// - From 640px: those sit in the header as icons; the menu holds the nav.
-// - From `navFrom`: the nav is inline and the menu goes away.
+// - Below `navFrom`: the menu holds everything — the pages, the tutorial,
+//   What's new, Report a problem, the way back to the Grove, the theme, and
+//   sign out — so the header is never more than one row of 48px.
+// - From `navFrom`: the pages are inline in the header and the menu holds
+//   the rest. There are no other header buttons at any width: one menu,
+//   always in the same place.
 //
 // Links go through the app's own router (`link`), so moving between pages
 // never reloads. Styled with the shared theme tokens, no shadcn.
@@ -118,8 +119,6 @@ const WIDTH = {
   full: "max-w-none",
 } as const;
 
-const ICON_BUTTON =
-  "flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground";
 
 export function isNavActive(item: GroveNavItem, pathname: string): boolean {
   if (item.match !== undefined) return item.match(pathname);
@@ -281,199 +280,98 @@ function Shell({
                 {actions}
               </div>
             )}
-            <span className="hidden items-center gap-1 sm:flex">
-              <a href={groveHref} title="Back to the Grove" aria-label="Back to the Grove" className={ICON_BUTTON}>
-                <GroveIcon className="size-5" />
-              </a>
-              {report !== null && (
-                <button
-                  type="button"
-                  title="Report a problem"
-                  aria-label="Report a problem"
-                  onClick={report.open}
-                  className={ICON_BUTTON}
-                >
-                  <FlagIcon className="size-4" />
-                </button>
-              )}
-              <HelpMenu
-                tutorialLabel={tutorialLabel}
-                reopenTutorial={reopenTutorial}
-                openChangelog={openChangelog}
-                major={major}
-              />
-              {theme !== undefined && (
-                <GroveMenu
-                  label="Theme"
-                  buttonClassName={ICON_BUTTON}
-                  button={theme.resolvedTheme === "dark" ? <MoonIcon className="size-4" /> : <SunIcon className="size-4" />}
-                  panelClassName="w-40 rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-xl"
-                >
-                  {THEMES.map((option) => (
-                    <GroveMenuItem
-                      key={option.key}
-                      active={(theme.theme ?? "system") === option.key}
-                      trailing={(theme.theme ?? "system") === option.key ? "✓" : undefined}
-                      onSelect={() => theme.setTheme(option.key)}
-                    >
-                      {option.label}
-                    </GroveMenuItem>
-                  ))}
-                </GroveMenu>
-              )}
-              <GroveMenu
-                label="Account"
-                buttonClassName="ml-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium hover:opacity-90"
-                button={who.charAt(0).toUpperCase()}
-              >
-                <GroveMenuLabel>{who}</GroveMenuLabel>
-                {menu !== undefined && (
-                  <>
-                    <GroveMenuSeparator />
-                    {menu}
-                  </>
-                )}
-                <GroveMenuSeparator />
-                <GroveMenuItem icon={<LogOutIcon />} onSelect={() => void signOut()}>
-                  Sign out
-                </GroveMenuItem>
-              </GroveMenu>
-            </span>
-
             <GroveMenu
               label="Menu"
               button={<MenuIcon className="size-5" />}
-              // With no nav, from 640px there is nothing left in it.
-              buttonClassName={`relative flex size-9 shrink-0 items-center justify-center rounded-md text-foreground hover:bg-accent ${nav.length === 0 ? "sm:hidden" : bp.folded}`}
-              panelClassName="w-[min(17rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-xl"
+              buttonClassName="relative flex size-9 shrink-0 items-center justify-center rounded-md text-foreground hover:bg-accent"
+              panelClassName="w-[min(15rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-xl"
             >
-              {/* One column, each page a full-width row to read down and tap.
-                  The panel scrolls if a long nav pushes Sign out past the
-                  bottom of a short phone. */}
+              {/* The pages, one to a row, while the nav is folded away; from
+                  `navFrom` they are in the header and only the rest is here. */}
               {nav.length > 0 && (
-                <div role="none" className="grid gap-0.5">
-                  {nav.map((item) => (
-                    <GroveMenuItem
-                      key={item.to}
-                      // A notch tighter than the rest, so Parts' thirteen pages
-                      // and Sign out fit on a phone without scrolling.
-                      dense
-                      active={isNavActive(item, pathname)}
-                      trailing={item.newTab === true ? <ExternalIcon className="size-3" /> : item.badge}
-                      render={(itemProps) => navLink(item, itemProps)}
-                    >
-                      {item.label}
-                    </GroveMenuItem>
-                  ))}
+                <div role="none" className={bp.folded}>
+                  <div role="none" className="grid gap-0.5">
+                    {nav.map((item) => (
+                      <GroveMenuItem
+                        key={item.to}
+                        // A notch tighter than the rest, so Parts' thirteen
+                        // pages and Sign out fit on a phone without scrolling.
+                        dense
+                        active={isNavActive(item, pathname)}
+                        trailing={item.newTab === true ? <ExternalIcon className="size-3" /> : item.badge}
+                        render={(itemProps) => navLink(item, itemProps)}
+                      >
+                        {item.label}
+                      </GroveMenuItem>
+                    ))}
+                  </div>
+                  <GroveMenuSeparator />
                 </div>
               )}
-              {/* On a phone the header has no icons, so all of it is here. */}
-              <div role="none" className="sm:hidden">
-                {nav.length > 0 && <GroveMenuSeparator />}
-                {reopenTutorial !== null && (
-                  <GroveMenuItem icon={<BookIcon />} onSelect={reopenTutorial}>
-                    {tutorialLabel}
-                  </GroveMenuItem>
-                )}
-                {openChangelog !== null && (
-                  <GroveMenuItem icon={<SparklesIcon />} trailing={major} onSelect={openChangelog}>
-                    What's new
-                  </GroveMenuItem>
-                )}
-                {report !== null && (
-                  <GroveMenuItem icon={<FlagIcon />} onSelect={report.open}>
-                    Report a problem
-                  </GroveMenuItem>
-                )}
-                <GroveMenuItem icon={<GroveIcon />} render={(itemProps) => <a href={groveHref} {...itemProps} />}>
-                  Back to the Grove
+              {reopenTutorial !== null && (
+                <GroveMenuItem icon={<BookIcon />} onSelect={reopenTutorial}>
+                  {tutorialLabel}
                 </GroveMenuItem>
-                {theme !== undefined && <ThemeRow theme={theme} />}
-                {menu}
-                <GroveMenuSeparator />
-                <GroveMenuLabel>{who}</GroveMenuLabel>
-                <GroveMenuItem icon={<LogOutIcon />} onSelect={() => void signOut()}>
-                  Sign out
+              )}
+              {openChangelog !== null && (
+                <GroveMenuItem icon={<SparklesIcon />} trailing={major} onSelect={openChangelog}>
+                  What's new
                 </GroveMenuItem>
-              </div>
+              )}
+              {report !== null && (
+                <GroveMenuItem icon={<FlagIcon />} onSelect={report.open}>
+                  Report a problem
+                </GroveMenuItem>
+              )}
+              <GroveMenuItem icon={<GroveIcon />} render={(itemProps) => <a href={groveHref} {...itemProps} />}>
+                Back to the Grove
+              </GroveMenuItem>
+              {theme !== undefined && <ThemeRow theme={theme} />}
+              {menu}
+              <GroveMenuSeparator />
+              <GroveMenuLabel>{who}</GroveMenuLabel>
+              <GroveMenuItem icon={<LogOutIcon />} onSelect={() => void signOut()}>
+                Sign out
+              </GroveMenuItem>
             </GroveMenu>
           </div>
         </div>
       </header>
-      <PageTitleSlot.Provider value={{ node: titleNode, from: navFrom }}>{children}</PageTitleSlot.Provider>
+      <PageTitleSlot.Provider value={{ node: titleNode, from: navFrom, section }}>{children}</PageTitleSlot.Provider>
     </div>
   );
 }
 
-// The tutorial and the changelog behind one "?" in the header. With only
-// one of them there is nothing to choose between, so it is a plain button.
-function HelpMenu({
-  tutorialLabel,
-  reopenTutorial,
-  openChangelog,
-  major,
-}: {
-  tutorialLabel: string;
-  reopenTutorial: (() => void) | null;
-  openChangelog: (() => void) | null;
-  major: string | undefined;
-}) {
-  if (reopenTutorial === null && openChangelog === null) return null;
-  if (openChangelog === null) {
-    return (
-      <button type="button" title={tutorialLabel} aria-label={tutorialLabel} onClick={reopenTutorial ?? undefined} className={ICON_BUTTON}>
-        <HelpIcon className="size-[1.125rem]" />
-      </button>
-    );
-  }
-  if (reopenTutorial === null) {
-    return (
-      <button
-        type="button"
-        title="What's new"
-        aria-label="What's new"
-        onClick={openChangelog}
-        className={ICON_BUTTON}
-      >
-        <SparklesIcon className="size-4" />
-      </button>
-    );
-  }
-  return (
-    <GroveMenu label="Help" buttonClassName={ICON_BUTTON} button={<HelpIcon className="size-[1.125rem]" />}>
-      <GroveMenuItem icon={<BookIcon />} onSelect={reopenTutorial}>
-        {tutorialLabel}
-      </GroveMenuItem>
-      <GroveMenuItem icon={<SparklesIcon />} trailing={major} onSelect={openChangelog}>
-        What's new
-      </GroveMenuItem>
-    </GroveMenu>
-  );
-}
-
-// Light, Dark, System side by side in the phone menu: one tap each, and
-// the menu stays open so the change can be seen.
+// Light, Dark, System as three small icons beside the word: one tap each,
+// and the menu stays open so the change can be seen. Icons rather than
+// words, so the row is no wider than the menu's other items.
 function ThemeRow({ theme }: { theme: GroveTheme }) {
   const current = theme.theme ?? "system";
+  const icons = { light: SunIcon, dark: MoonIcon, system: MonitorIcon } as const;
   return (
-    <div role="group" aria-label="Theme" className="flex items-center gap-2.5 px-2 py-1.5 text-sm">
+    <div role="group" aria-label="Theme" className="flex items-center gap-2.5 px-2 py-1 text-sm">
       <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
         {theme.resolvedTheme === "dark" ? <MoonIcon /> : <SunIcon />}
       </span>
       Theme
-      <div className="ml-auto grid grid-cols-3 gap-0.5 rounded-lg bg-muted p-0.5">
-        {THEMES.map((option) => (
-          <button
-            key={option.key}
-            type="button"
-            role="menuitemradio"
-            aria-checked={current === option.key}
-            onClick={() => theme.setTheme(option.key)}
-            className={`rounded-md px-2 py-1 text-xs ${current === option.key ? "bg-background font-medium shadow-sm" : "text-muted-foreground"}`}
-          >
-            {option.label}
-          </button>
-        ))}
+      <div className="ml-auto flex gap-0.5 rounded-lg bg-muted p-0.5">
+        {THEMES.map((option) => {
+          const Icon = icons[option.key];
+          return (
+            <button
+              key={option.key}
+              type="button"
+              role="menuitemradio"
+              aria-checked={current === option.key}
+              aria-label={option.label}
+              title={option.label}
+              onClick={() => theme.setTheme(option.key)}
+              className={`flex size-7 items-center justify-center rounded-md ${current === option.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <Icon className="size-3.5" />
+            </button>
+          );
+        })}
       </div>
     </div>
   );

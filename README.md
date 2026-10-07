@@ -75,15 +75,15 @@ while the nav is folded away; a menu on the right.
 
 | Width | Header |
 | --- | --- |
-| phone | the page's name in the middle; **everything** else in the menu — the nav, the tutorial, What's new, Report a problem, Back to the Grove, the theme, Sign out |
-| 640px+ | those as icons (the tutorial and What's new behind one `?`); the menu holds the nav |
-| `navFrom`+ | the nav inline; no menu; pages show their own heading |
+| below `navFrom` | the page's name in the middle; the menu holds the pages, the tutorial, What's new, Report a problem, Back to the Grove, the theme (Light / Dark / System), and Sign out |
+| `navFrom`+ | the pages inline; the menu holds the rest |
+
+There are no other header buttons at any width — one menu, always in the
+same place.
 
 ```tsx
 // src/routes/layout.tsx
 const { pathname } = useLocation()
-const { resolvedTheme, setTheme } = useTheme()
-const dark = resolvedTheme === "dark"
 
 <GroveShell
   icon={<AppIcon />}                 // public/favicon.svg
@@ -93,7 +93,7 @@ const dark = resolvedTheme === "dark"
   link={Link}                        // React Router's Link: no reloads
   navFrom="lg"                       // where every label fits on one row
   width="6xl"                        // match <main>
-  theme={{ dark, toggle: () => setTheme(dark ? "light" : "dark") }}
+  theme={useTheme()}                 // next-themes, as it is
 >
   <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 py-3 sm:py-5"><Outlet /></main>
   <GroveTutorial … />
@@ -109,12 +109,36 @@ fill the viewport: `h-[calc(100dvh-var(--grove-header))]`.
 A page names itself with `PageHeader` (or `PageTitle` alone):
 
 ```tsx
-<PageHeader title="All requests" description="Everything anyone has asked for." actions={<Button>…</Button>} />
+<PageHeader title="All requests" />
+<PageHeader title={part.partNumber} subtitle={`Issued by ${who} on ${date}`} actions={<Button>…</Button>} />
 ```
 
-The title goes into the app bar while the nav is folded and is the page's
-`h1` once it is inline; the description shows from 640px. Keep it to one
-sentence: a phone goes straight to the page.
+The title goes into the app bar while the nav is folded. Once the nav is
+inline it is the page's `h1` — unless it only repeats the highlighted tab,
+which already says where you are. `subtitle` is a line of facts about this
+one thing, at every width. There is no description: a page does not explain
+itself in a paragraph above its content; the tutorial does.
+
+## The table toolbar
+
+`TableToolbar` goes over every table or list worth filtering: search, then
+Filter, Sort, Group and •••, with what is set as chips (✕ each, Clear all).
+Filters take several values; a `custom` field holds the page's own controls
+(a date range). Icons and a bottom sheet on a phone, labels and a panel
+from 640px. The page keeps its own state — put filters in the URL,
+comma-separated — and its own filtering.
+
+```tsx
+<TableToolbar
+  search={{ value: q, onChange: setQ }}
+  filters={[{ key: "status", label: "Status", options, values: status, onChange: setStatus }]}
+  sort={{ options: SORTS, value: sort, onChange: setSort, defaultKey: "priority" }}
+  group={{ options: GROUPS, value: group, onChange: setGroup, noneKey: "none" }}
+  more={<GroveMenuItem onSelect={exportCsv}>Export</GroveMenuItem>}
+  count={`${rows.length} of ${all.length} parts`}
+  primary={{ label: "New part", onClick: () => setCreating(true) }}
+/>
+```
 
 ## The first-run tutorial, and what's new
 

@@ -104,6 +104,29 @@ describe("GroveShell", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1678-27x-0301");
   });
 
+  test("a page title that only repeats the highlighted tab is not shown again", () => {
+    mount("/queue", <PageHeader title="Queue" />);
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading.className).toContain("sr-only");
+    expect(heading.className).not.toContain("not-sr-only");
+  });
+
+  test("a title the tab cannot say is the page's heading once the nav is inline", () => {
+    mount("/parts/1", <PageHeader title="1678-27x-0301" subtitle="Issued by Ava on Oct 3" />);
+    expect(screen.getByRole("heading", { level: 1 }).className).toContain("lg:not-sr-only");
+    expect(screen.getByText("Issued by Ava on Oct 3")).toBeDefined();
+  });
+
+  test("the menu is the header's only control, and always holds the Grove and Sign out", () => {
+    mount("/parts");
+    // Closed, so hidden from the accessibility tree; its items are there.
+    const menu = document.querySelector<HTMLElement>('dialog[aria-label="Menu"]')!;
+    expect(within(menu).getByRole("menuitem", { name: "Back to the Grove", hidden: true })).toBeDefined();
+    expect(within(menu).getByRole("menuitem", { name: "Sign out", hidden: true })).toBeDefined();
+    const header = document.querySelector("header")!;
+    expect(within(header).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["Menu"]);
+  });
+
   test("shows the version beside the name", () => {
     mount("/parts");
     expect(screen.getByText("V38.02")).toBeDefined();

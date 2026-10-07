@@ -63,6 +63,13 @@ export const SunIcon = (p: P) => (
   </Icon>
 );
 
+export const MonitorIcon = (p: P) => (
+  <Icon {...p}>
+    <rect width="20" height="14" x="2" y="3" rx="2" />
+    <path d="M8 21h8M12 17v4" />
+  </Icon>
+);
+
 export const LogOutIcon = (p: P) => (
   <Icon {...p}>
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
