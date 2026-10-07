@@ -62,7 +62,10 @@ export function GroveTutorial({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const headingId = useId();
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"tutorial" | "changelog">("tutorial");
+  // "changelog" is the note that opens itself after a bump, holding only
+  // what this person missed; "history" is every version, opened from the
+  // menu's "What's new".
+  const [mode, setMode] = useState<"tutorial" | "changelog" | "history">("tutorial");
   const [step, setStep] = useState(0);
   // Held rather than derived: dismissing records the version, the
   // seen-version query re-resolves, and a derived list would empty itself
@@ -75,6 +78,18 @@ export function GroveTutorial({
   const show = useCallback(() => {
     setMode("tutorial");
     setStep(0);
+    setOpen(true);
+  }, []);
+
+  // Which versions to mark New in the history: the ones after what this
+  // person last dismissed, read when the history opens. A ref, so the
+  // function handed to the menu does not change every time the query does.
+  const seenRef = useRef(seen);
+  seenRef.current = seen;
+  const [newAfter, setNewAfter] = useState<number | null>(null);
+  const showHistory = useCallback(() => {
+    setNewAfter(typeof seenRef.current === "number" ? seenRef.current : null);
+    setMode("history");
     setOpen(true);
   }, []);
 
@@ -118,6 +133,14 @@ export function GroveTutorial({
     return () => slot.register(null);
   }, [slot, show, slides.length]);
 
+  // Likewise the menu's "What's new", while there is a changelog to show.
+  const hasChangelog = changelog.length > 0;
+  useEffect(() => {
+    if (!hasChangelog) return;
+    slot.registerChangelog?.(showHistory);
+    return () => slot.registerChangelog?.(null);
+  }, [slot, showHistory, hasChangelog]);
+
   // showModal() is what makes this a real dialog rather than a div on top
   // of the page: focus moves in, the rest of the document leaves the tab
   // order, Escape closes it, and focus returns to whatever opened it. None
@@ -144,7 +167,8 @@ export function GroveTutorial({
   }, [dismiss]);
 
   if (slides.length === 0 && changelog.length === 0) return null;
-  const showingChanges = mode === "changelog";
+  const history = mode === "history";
+  const showingChanges = mode === "changelog" || history;
   const slide = slides[Math.min(step, slides.length - 1)];
   const last = step === slides.length - 1;
 
@@ -155,19 +179,33 @@ export function GroveTutorial({
       aria-modal="true"
       aria-labelledby={headingId}
       // w-[calc(100vw-2rem)] rather than a fixed width: the phone case is
-      // the one that breaks, and the UA's own max-width is not enough.
-      className="m-auto w-[calc(100vw-2rem)] max-w-md rounded-xl border bg-card p-0 text-card-foreground shadow-lg backdrop:bg-black/50"
+      // the one that breaks, and the UA's own max-width is not enough. The
+      // whole history is a sheet from the bottom on a phone, where a long
+      // list belongs under the thumb.
+      className={
+        history
+          ? "m-auto w-[calc(100vw-2rem)] max-w-lg rounded-xl border bg-card p-0 text-card-foreground shadow-lg backdrop:bg-black/50 max-sm:mb-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-b-0"
+          : "m-auto w-[calc(100vw-2rem)] max-w-md rounded-xl border bg-card p-0 text-card-foreground shadow-lg backdrop:bg-black/50"
+      }
     >
       {/* One fixed height for every slide, capped to the viewport. Sizing to
         the content instead let a short slide draw a short dialog and a long
         one a tall dialog, so Next and Back jumped to a new place on the
         screen at every step and people missed them. The body scrolls inside
         this box; the header and footer do not move. */}
-      <div className="flex h-[min(32rem,calc(100svh-2rem))] flex-col">
+      <div
+        className={
+          history
+            ? "flex h-[min(40rem,calc(100svh-2rem))] flex-col max-sm:h-[calc(100svh-4.5rem)]"
+            : "flex h-[min(32rem,calc(100svh-2rem))] flex-col"
+        }
+      >
         <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
           <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {showingChanges
+              {history
+                ? `${appName} · every version`
+                : showingChanges
                 ? `${appName} · ${majorLabel(version)}`
                 : `${title} · step ${step + 1} of ${slides.length}`}
             </p>
@@ -195,7 +233,16 @@ export function GroveTutorial({
 
         {showingChanges ? (
           <>
-            <ChangesBody entries={entries} />
+            {history ? (
+              <ChangesBody entries={allChanges(changelog, version)} newAfter={newAfter} />
+            ) : (
+              <ChangesBody
+                entries={entries}
+                more={
+                  allChanges(changelog, version).length > entries.length ? showHistory : undefined
+                }
+              />
+            )}
             <div className="flex items-center justify-between gap-3 border-t px-5 py-3">
               {/* The way back to the whole walkthrough for anyone who wants
                 it, without making everyone sit through it. */}
@@ -276,7 +323,23 @@ function majorLabel(version: number): string {
   return `V${String(Math.max(0, Math.trunc(version))).padStart(2, "0")}`;
 }
 
-function ChangesBody({ entries }: { entries: ChangelogEntry[] }) {
+// Every entry the build has reached, newest first. One written ahead of
+// the bump that ships it stays hidden, as it does in the note.
+function allChanges(changelog: readonly ChangelogEntry[], version: number): ChangelogEntry[] {
+  return unseenChanges(changelog, Number.NEGATIVE_INFINITY, version);
+}
+
+function ChangesBody({
+  entries,
+  newAfter = null,
+  more,
+}: {
+  entries: ChangelogEntry[];
+  // Versions after this one are marked New. Null marks nothing.
+  newAfter?: number | null;
+  // The note shows only what was missed; this opens the rest.
+  more?: () => void;
+}) {
   // A version label on each section only earns its place when there is
   // more than one to tell apart, or a headline to hang it on.
   const labelled = entries.length > 1 || entries.some((entry) => entry.title !== undefined);
@@ -289,6 +352,11 @@ function ChangesBody({ entries }: { entries: ChangelogEntry[] }) {
               <h3 className="text-sm font-semibold text-foreground">
                 {majorLabel(entry.version)}
                 {entry.title !== undefined && ` · ${entry.title}`}
+                {newAfter !== null && entry.version > newAfter && (
+                  <span className="ml-2 rounded-full bg-primary/10 px-1.5 py-px align-middle text-[0.6875rem] font-medium text-primary">
+                    New
+                  </span>
+                )}
               </h3>
             )}
             <ul className="grid list-disc gap-2 pl-5 text-sm leading-relaxed text-muted-foreground marker:text-muted-foreground/60">
@@ -298,6 +366,15 @@ function ChangesBody({ entries }: { entries: ChangelogEntry[] }) {
             </ul>
           </section>
         ))}
+        {more !== undefined && (
+          <button
+            type="button"
+            onClick={more}
+            className="justify-self-start text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            See every version
+          </button>
+        )}
       </div>
     </div>
   );
