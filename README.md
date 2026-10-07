@@ -44,7 +44,7 @@ roster entry id (strings).
 ```tsx
 <GroveProvider groveUrl={VITE_GROVE_CONVEX_URL} appUrl={VITE_CONVEX_URL} appName="Chime" version={APP_VERSION}>
   <RequireSignedIn>
-    <GroveShell nav={[{ href: "/chime/", label: "Events" }]}>…</GroveShell>
+    <AppLayout />   {/* GroveShell inside, below */}
   </RequireSignedIn>
 </GroveProvider>
 ```
@@ -56,14 +56,89 @@ roster entry id (strings).
 | `useMe()` | The Grove account (`users.me`) |
 | `useGrove()` | Both clients, auth state, `signIn`, `signOut` |
 | `useGroveQuery(groveApi.roster.list, { year })` | Live Grove queries from the browser |
-| `GroveShell`, `PendingScreen`, `Spinner`, `DevSignIn` | House chrome |
-| `GroveTutorial`, `TutorialSlide`, `ChangelogEntry` | The first-run tutorial and the "What's new" note (below) |
+| `GroveShell`, `PageHeader`, `PageTitle` | The app bar every app shares, and a page's title (below) |
+| `GroveMenu`, `GroveMenuItem`, `GroveMenuSeparator`, `GroveMenuLabel` | The shell's menus, for an app's own extra menu items |
+| `PendingScreen`, `Spinner`, `DevSignIn` | House chrome |
+| `GroveTutorial`, `TutorialSlide`, `ChangelogEntry` | The first-run tutorial, the "What's new" note, and the full changelog (below) |
 | `ReportProblemButton`, `useReportContext`, `useReportProblem`, `ReportProvider` | Report a problem (below) |
 
 `@frc1678/grove-sdk/groups` exports the group vocabulary for frontends, and
 `@frc1678/grove-sdk/theme.css` is the Grove's Tailwind theme (add
 `@source "../node_modules/@frc1678/grove-sdk/src";` to your CSS so the SDK's
 screens get their classes).
+
+## The app bar
+
+`GroveShell` is the header every Grove app shares, first built in Parts. One
+row: the app's mark, name and version on the left; the page's name centred
+while the nav is folded away; a menu on the right.
+
+| Width | Header |
+| --- | --- |
+| below `navFrom` | the page's name in the middle; the menu holds the pages, the tutorial, What's new, Report a problem, Back to the Grove, the theme (Light / Dark / System), and Sign out |
+| `navFrom`+ | the pages inline; the menu holds the rest |
+
+There are no other header buttons at any width — one menu, always in the
+same place.
+
+```tsx
+// src/routes/layout.tsx
+const { pathname } = useLocation()
+
+<GroveShell
+  icon={<AppIcon />}                 // public/favicon.svg
+  version={APP_VERSION}
+  nav={[{ to: "/", label: "Events" }, { to: "/display", label: "Display", newTab: true }]}
+  pathname={pathname}
+  link={Link}                        // React Router's Link: no reloads
+  navFrom="lg"                       // where every label fits on one row
+  width="6xl"                        // match <main>
+  theme={useTheme()}                 // next-themes, as it is
+>
+  <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 py-3 sm:py-5"><Outlet /></main>
+  <GroveTutorial … />
+</GroveShell>
+```
+
+`actions` keeps an app's own control in the header at every width (an event
+switcher, a queue count); `menu` adds `GroveMenuItem`s. A nav item takes
+`badge`, `newTab`, and `match` when "this page" is more than a prefix. The
+shell sets `--grove-header` (its height, border included) for pages that
+fill the viewport: `h-[calc(100dvh-var(--grove-header))]`.
+
+A page names itself with `PageHeader` (or `PageTitle` alone):
+
+```tsx
+<PageHeader title="All requests" />
+<PageHeader title={part.partNumber} subtitle={`Issued by ${who} on ${date}`} actions={<Button>…</Button>} />
+```
+
+The title goes into the app bar while the nav is folded. Once the nav is
+inline it is the page's `h1` — unless it only repeats the highlighted tab,
+which already says where you are. `subtitle` is a line of facts about this
+one thing, at every width. There is no description: a page does not explain
+itself in a paragraph above its content; the tutorial does.
+
+## The table toolbar
+
+`TableToolbar` goes over every table or list worth filtering: search, then
+Filter, Sort, Group and •••, with what is set as chips (✕ each, Clear all).
+Filters take several values; a `custom` field holds the page's own controls
+(a date range). Icons and a bottom sheet on a phone, labels and a panel
+from 640px. The page keeps its own state — put filters in the URL,
+comma-separated — and its own filtering.
+
+```tsx
+<TableToolbar
+  search={{ value: q, onChange: setQ }}
+  filters={[{ key: "status", label: "Status", options, values: status, onChange: setStatus }]}
+  sort={{ options: SORTS, value: sort, onChange: setSort, defaultKey: "priority" }}
+  group={{ options: GROUPS, value: group, onChange: setGroup, noneKey: "none" }}
+  more={<GroveMenuItem onSelect={exportCsv}>Export</GroveMenuItem>}
+  count={`${rows.length} of ${all.length} parts`}
+  primary={{ label: "New part", onClick: () => setCreating(true) }}
+/>
+```
 
 ## The first-run tutorial, and what's new
 
@@ -121,9 +196,11 @@ Add the entry in the same pull request that bumps `src/version.ts`; an
 entry whose version is above the build's is held back until the bump ships.
 Write it for someone who already uses the app: what is different, in a
 sentence each, not how the app works. Skip, Done, Got it and Escape all
-record the version, so nobody is shown the same thing twice. Rendered inside `GroveShell`, it also
-puts a help button in the header that reopens it; an app that renders no
-`<GroveTutorial>` gets no button.
+record the version, so nobody is shown the same thing twice. Rendered inside
+`GroveShell`, the menu gains "How … works", which reopens the tutorial, and
+"What's new", which opens **every** version's entries, newest first, with the
+ones this person had not seen marked New. An app that renders no
+`<GroveTutorial>` gets neither.
 
 It must sit behind `RequireSignedIn`: both wrapped functions derive the
 caller from the token and refuse anyone who isn't active. Slides are text,
@@ -175,7 +252,7 @@ export const APP_VERSION = __GROVE_APP_VERSION__
 ```
 
 ```tsx
-<GroveShell nav={nav} version={APP_VERSION}>   // or, with your own header:
+<GroveShell … version={APP_VERSION}>   // or, with your own header:
 <GroveVersionBadge version={APP_VERSION} />
 ```
 

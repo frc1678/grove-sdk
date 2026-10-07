@@ -18,6 +18,8 @@ vi.mock("./provider", () => ({ useGrove: () => ({ appName: "Chime" }) }));
 vi.mock("./guards", () => ({ useMe: () => ({ status: "active" }) }));
 
 const { GroveTutorial } = await import("./GroveTutorial");
+const { TutorialProvider } = await import("./tutorialChrome");
+const { useOpenChangelog } = await import("./tutorialSlot");
 
 const seenVersion = "tutorial:seenVersion" as unknown as FunctionReference<
   "query",
@@ -110,5 +112,55 @@ describe("GroveTutorial", () => {
 
   test("someone already on this version sees nothing", () => {
     expect(mount(3).open).toBe(false);
+  });
+
+  test("the changelog the menu opens holds every version, marking the ones missed", () => {
+    state.seen = 2;
+    function WhatsNew() {
+      const open = useOpenChangelog();
+      return open === null ? null : (
+        <button type="button" onClick={open}>
+          menu: What's new
+        </button>
+      );
+    }
+    const { rerender } = render(
+      <TutorialProvider>
+        <WhatsNew />
+        <GroveTutorial
+          version={3}
+          slides={slides}
+          changelog={[...changelog, { version: 4, changes: ["Not shipped yet"] }]}
+          seenVersion={seenVersion}
+          markSeen={markSeen}
+        />
+      </TutorialProvider>,
+    );
+    // The bump opened the note with only what was missed; closing it
+    // records version 3, and the query answers 3 from then on.
+    fireEvent.click(screen.getByText("Got it"));
+    state.seen = 3;
+    rerender(
+      <TutorialProvider>
+        <WhatsNew />
+        <GroveTutorial
+          version={3}
+          slides={slides}
+          changelog={[...changelog, { version: 4, changes: ["Not shipped yet"] }]}
+          seenVersion={seenVersion}
+          markSeen={markSeen}
+        />
+      </TutorialProvider>,
+    );
+    fireEvent.click(screen.getByText("menu: What's new"));
+    expect(screen.getByText("Make up a missed meeting")).toBeDefined();
+    expect(screen.getByText("RSVPs from the calendar view")).toBeDefined();
+    expect(screen.queryByText("Not shipped yet")).toBeNull();
+    expect(screen.getAllByText("New")).toHaveLength(1);
+  });
+
+  test("the note after a bump links to the rest of the history", () => {
+    mount(2);
+    expect(screen.getByText("See every version")).toBeDefined();
   });
 });

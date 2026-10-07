@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
+  ChangelogOpenContext,
   TutorialOpenContext,
   TutorialSlotContext,
   useReopenTutorial,
@@ -20,6 +21,7 @@ import {
 
 export function TutorialProvider({ children }: { children: ReactNode }) {
   const [reopen, setReopen] = useState<(() => void) | null>(null);
+  const [changelog, setChangelog] = useState<(() => void) | null>(null);
   // The extra arrow is not decoration: setState treats a bare function as
   // an updater, so `setReopen(open)` would call the tutorial instead of
   // storing it.
@@ -27,11 +29,20 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     (open: (() => void) | null) => setReopen(() => open),
     [],
   );
-  const slot = useMemo<TutorialSlot>(() => ({ register }), [register]);
+  const registerChangelog = useCallback(
+    (open: (() => void) | null) => setChangelog(() => open),
+    [],
+  );
+  const slot = useMemo<TutorialSlot>(
+    () => ({ register, registerChangelog }),
+    [register, registerChangelog],
+  );
 
   return (
     <TutorialSlotContext.Provider value={slot}>
-      <TutorialOpenContext.Provider value={reopen}>{children}</TutorialOpenContext.Provider>
+      <TutorialOpenContext.Provider value={reopen}>
+        <ChangelogOpenContext.Provider value={changelog}>{children}</ChangelogOpenContext.Provider>
+      </TutorialOpenContext.Provider>
     </TutorialSlotContext.Provider>
   );
 }
