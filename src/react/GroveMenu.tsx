@@ -33,6 +33,7 @@ export function GroveMenu({
   buttonClassName,
   panelClassName,
   align = "end",
+  tourId,
   children,
 }: {
   // The button's accessible name, and its tooltip.
@@ -43,6 +44,8 @@ export function GroveMenu({
   panelClassName?: string;
   // Which edge of the button the panel lines up with.
   align?: "start" | "end";
+  // A `data-tour` name for the button, so a GroveTour step can ring it.
+  tourId?: string;
   children: ReactNode;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -125,6 +128,7 @@ export function GroveMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={panelId}
+        data-tour={tourId}
         onClick={show}
         className={
           buttonClassName ??

@@ -3,6 +3,7 @@ import type { FunctionReference } from "convex/server";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useMe } from "./guards";
 import { useGrove } from "./provider";
+import { GroveTour, type TourStep } from "./GroveTour";
 import { useTutorialSlot } from "./tutorialSlot";
 import {
   autoOpening,
@@ -34,7 +35,7 @@ export type GroveTutorialProps = {
   // The app's major version. Bumping it shows newcomers the tutorial and
   // everyone else the changelog entries they have not seen.
   version: number;
-  slides: TutorialSlide[];
+  slides?: TutorialSlide[];
   // What changed in each major version. Someone coming back after a bump
   // gets the entries since the version they last dismissed instead of the
   // whole tutorial again. A bump with no entry opens nothing.
@@ -44,15 +45,24 @@ export type GroveTutorialProps = {
   markSeen: FunctionReference<"mutation", "public", { version: number }, null>;
   // Header of the dialog and the tooltip on the header button.
   title?: string;
+  // The guided tour (GroveTour): steps that walk through the app itself.
+  // Given, it replaces the slides — on a first visit and from the menu's
+  // "Take the tour". It needs the router: the current path and a navigate.
+  tour?: TourStep[];
+  pathname?: string;
+  navigate?: (to: string) => void;
 };
 
 export function GroveTutorial({
   version,
-  slides,
+  slides = NO_SLIDES,
   changelog = NO_CHANGES,
   seenVersion,
   markSeen,
   title = "How this app works",
+  tour = NO_STEPS,
+  pathname,
+  navigate,
 }: GroveTutorialProps) {
   const me = useMe();
   const { appName } = useGrove();
@@ -75,11 +85,18 @@ export function GroveTutorial({
   // then having the seen-version query re-resolve would open it again.
   const offered = useRef(false);
 
+  const hasTour = tour.length > 0;
+  const [touring, setTouring] = useState(false);
   const show = useCallback(() => {
+    if (hasTour) {
+      setOpen(false);
+      setTouring(true);
+      return;
+    }
     setMode("tutorial");
     setStep(0);
     setOpen(true);
-  }, []);
+  }, [hasTour]);
 
   // Which versions to mark New in the history: the ones after what this
   // person had dismissed when the page loaded. The first answer, not the
@@ -107,6 +124,10 @@ export function GroveTutorial({
     void record({ version });
     setOpen(false);
   }, [record, version]);
+  const finishTour = useCallback(() => {
+    void record({ version });
+    setTouring(false);
+  }, [record, version]);
 
   useEffect(() => {
     if (offered.current) return;
@@ -114,7 +135,7 @@ export function GroveTutorial({
       seenVersion: seen,
       version,
       status: me?.status,
-      slideCount: slides.length,
+      slideCount: slides.length + tour.length,
       changelog,
     });
     if (opening === null) return;
@@ -126,15 +147,16 @@ export function GroveTutorial({
     setEntries(unseenChanges(changelog, seen ?? 0, version));
     setMode("changelog");
     setOpen(true);
-  }, [seen, version, me?.status, slides.length, changelog, show]);
+  }, [seen, version, me?.status, slides.length, tour.length, changelog, show]);
 
   // Lend the header a way back in, but only while there is something to
   // show. Registering null on unmount takes the button away with it.
+  const introduces = slides.length > 0 || hasTour;
   useEffect(() => {
-    if (slides.length === 0) return;
-    slot.register(show);
+    if (!introduces) return;
+    slot.register(show, hasTour ? "Take the tour" : undefined);
     return () => slot.register(null);
-  }, [slot, show, slides.length]);
+  }, [slot, show, introduces, hasTour]);
 
   // Likewise the menu's "What's new", while there is a changelog to show.
   const hasChangelog = changelog.length > 0;
@@ -169,13 +191,17 @@ export function GroveTutorial({
     return () => dialog.removeEventListener("close", onClose);
   }, [dismiss]);
 
-  if (slides.length === 0 && changelog.length === 0) return null;
+  if (!introduces && changelog.length === 0) return null;
   const history = mode === "history";
   const showingChanges = mode === "changelog" || history;
   const slide = slides[Math.min(step, slides.length - 1)];
   const last = step === slides.length - 1;
 
   return (
+    <>
+    {touring && (
+      <GroveTour steps={tour} appName={appName} pathname={pathname} navigate={navigate} onFinish={finishTour} />
+    )}
     <dialog
       ref={dialogRef}
       role="dialog"
@@ -213,7 +239,7 @@ export function GroveTutorial({
                 : `${title} · step ${step + 1} of ${slides.length}`}
             </p>
             <h2 id={headingId} className="mt-1 text-2xl font-semibold tracking-tight">
-              {showingChanges ? "What's new" : slide.title}
+              {showingChanges ? "What's new" : slide?.title}
             </h2>
           </div>
           <button
@@ -249,13 +275,13 @@ export function GroveTutorial({
             <div className="flex items-center justify-between gap-3 border-t px-5 py-3">
               {/* The way back to the whole walkthrough for anyone who wants
                 it, without making everyone sit through it. */}
-              {slides.length > 0 ? (
+              {introduces ? (
                 <button
                   type="button"
                   onClick={show}
                   className="min-w-0 truncate text-sm text-muted-foreground hover:text-foreground"
                 >
-                  See the tutorial
+                  {hasTour ? "Take the tour" : "See the tutorial"}
                 </button>
               ) : (
                 <span />
@@ -274,12 +300,12 @@ export function GroveTutorial({
             <div className="flex-1 overflow-y-auto px-5 py-5">
               {/* Centred while the slide is short, scrolled once it is not. */}
               <div className="grid min-h-full content-center gap-4">
-                {slide.icon !== undefined && (
+                {slide?.icon !== undefined && (
                   <div className="flex items-center justify-center rounded-lg bg-muted py-6 text-muted-foreground">
-                    {slide.icon}
+                    {slide?.icon}
                   </div>
                 )}
-                <div className="text-sm leading-relaxed text-muted-foreground">{slide.body}</div>
+                <div className="text-sm leading-relaxed text-muted-foreground">{slide?.body}</div>
               </div>
             </div>
 
@@ -315,9 +341,12 @@ export function GroveTutorial({
         )}
       </div>
     </dialog>
+    </>
   );
 }
 
+const NO_STEPS: TourStep[] = [];
+const NO_SLIDES: TutorialSlide[] = [];
 const NO_CHANGES: ChangelogEntry[] = [];
 
 // The same two-digit major the header's Vxx.yy badge leads with, so the
