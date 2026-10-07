@@ -124,7 +124,7 @@ describe("GroveTutorial", () => {
         </button>
       );
     }
-    render(
+    const { rerender } = render(
       <TutorialProvider>
         <WhatsNew />
         <GroveTutorial
@@ -136,8 +136,22 @@ describe("GroveTutorial", () => {
         />
       </TutorialProvider>,
     );
-    // The bump opened the note with only what was missed; close it.
+    // The bump opened the note with only what was missed; closing it
+    // records version 3, and the query answers 3 from then on.
     fireEvent.click(screen.getByText("Got it"));
+    state.seen = 3;
+    rerender(
+      <TutorialProvider>
+        <WhatsNew />
+        <GroveTutorial
+          version={3}
+          slides={slides}
+          changelog={[...changelog, { version: 4, changes: ["Not shipped yet"] }]}
+          seenVersion={seenVersion}
+          markSeen={markSeen}
+        />
+      </TutorialProvider>,
+    );
     fireEvent.click(screen.getByText("menu: What's new"));
     expect(screen.getByText("Make up a missed meeting")).toBeDefined();
     expect(screen.getByText("RSVPs from the calendar view")).toBeDefined();

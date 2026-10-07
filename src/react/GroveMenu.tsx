@@ -67,7 +67,9 @@ export function GroveMenu({
       const top = Math.round(rect.bottom + 6);
       setPlace(
         align === "end"
-          ? { top, right: Math.max(8, Math.round(window.innerWidth - rect.right)) }
+          ? // clientWidth, not innerWidth: `right` is measured from the
+            // viewport's edge without the scrollbar.
+            { top, right: Math.max(8, Math.round(document.documentElement.clientWidth - rect.right)) }
           : { top, left: Math.max(8, Math.round(rect.left)) },
       );
     }
@@ -88,6 +90,14 @@ export function GroveMenu({
     dialog.addEventListener("close", close);
     return () => dialog.removeEventListener("close", close);
   }, [close]);
+
+  // Placed once, on opening: rotating a phone or crossing a breakpoint can
+  // hide the button it hangs from, so it closes rather than float loose.
+  useEffect(() => {
+    if (!open) return;
+    window.addEventListener("resize", close);
+    return () => window.removeEventListener("resize", close);
+  }, [open, close]);
 
   // Up and down move between items, as in any menu.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -139,6 +149,7 @@ export function GroveMenu({
         <CloseContext.Provider value={close}>
           <div
             role="menu"
+            aria-label={label}
             onKeyDown={onKeyDown}
             style={{ maxHeight: `calc(100svh - ${place.top + 8}px)` }}
             className={
@@ -155,7 +166,7 @@ export function GroveMenu({
 }
 
 const ITEM =
-  "flex w-full min-w-0 items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent";
+  "flex w-full min-w-0 items-center gap-2.5 rounded-md px-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent";
 
 /**
  * One row of a GroveMenu. Give it `onSelect` for an action; for a link,
@@ -169,6 +180,7 @@ export function GroveMenuItem({
   onSelect,
   render,
   active = false,
+  dense = false,
   className,
 }: {
   icon?: ReactNode;
@@ -185,10 +197,12 @@ export function GroveMenuItem({
     "aria-current"?: "page";
   }) => ReactNode;
   active?: boolean;
+  // A shorter row, for a long list such as the nav.
+  dense?: boolean;
   className?: string;
 }) {
   const close = useCloseMenu();
-  const classes = [ITEM, active ? "bg-accent font-medium text-accent-foreground" : "", className ?? ""]
+  const classes = [ITEM, dense ? "py-1.5" : "py-2", active ? "bg-accent font-medium text-accent-foreground" : "", className ?? ""]
     .filter(Boolean)
     .join(" ");
   const content = (
@@ -231,5 +245,9 @@ export function GroveMenuSeparator({ className }: { className?: string }) {
 }
 
 export function GroveMenuLabel({ children }: { children: ReactNode }) {
-  return <div className="truncate px-2 pt-1 pb-0.5 text-xs text-muted-foreground">{children}</div>;
+  return (
+    <div role="presentation" className="truncate px-2 pt-1 pb-0.5 text-xs text-muted-foreground">
+      {children}
+    </div>
+  );
 }

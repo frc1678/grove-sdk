@@ -25,7 +25,18 @@ export {
   type GroveLinkProps,
   type GroveNavItem,
   type GroveShellProps,
+  type GroveTheme,
 } from "./GroveShell";
+// The Notion-style bar over a table: search, Filter, Sort, Group, •••, and
+// what is active as chips.
+export {
+  TableToolbar,
+  type TableToolbarProps,
+  type ToolbarFilter,
+  type ToolbarGroup,
+  type ToolbarOption,
+  type ToolbarSort,
+} from "./TableToolbar";
 export {
   GroveMenu,
   GroveMenuItem,

@@ -82,13 +82,16 @@ export function GroveTutorial({
   }, []);
 
   // Which versions to mark New in the history: the ones after what this
-  // person last dismissed, read when the history opens. A ref, so the
-  // function handed to the menu does not change every time the query does.
-  const seenRef = useRef(seen);
-  seenRef.current = seen;
+  // person had dismissed when the page loaded. The first answer, not the
+  // current one — closing the note after a bump records this version, and
+  // reading it then would mark nothing new.
+  const seenOnArrival = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (seenOnArrival.current === undefined && seen !== undefined) seenOnArrival.current = seen;
+  }, [seen]);
   const [newAfter, setNewAfter] = useState<number | null>(null);
   const showHistory = useCallback(() => {
-    setNewAfter(typeof seenRef.current === "number" ? seenRef.current : null);
+    setNewAfter(typeof seenOnArrival.current === "number" ? seenOnArrival.current : null);
     setMode("history");
     setOpen(true);
   }, []);
@@ -196,7 +199,7 @@ export function GroveTutorial({
       <div
         className={
           history
-            ? "flex h-[min(40rem,calc(100svh-2rem))] flex-col max-sm:h-[calc(100svh-4.5rem)]"
+            ? "flex h-[min(40rem,calc(100svh-2rem))] flex-col max-sm:h-[calc(100svh-4.5rem)] max-sm:pb-[env(safe-area-inset-bottom)]"
             : "flex h-[min(32rem,calc(100svh-2rem))] flex-col"
         }
       >

@@ -59,7 +59,12 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
+    // With no buttons there is nothing to show on a phone; taking it out of
+    // the flow (still read aloud) keeps the page's gap from opening above
+    // the content for an empty row.
+    <div
+      className={`flex flex-wrap items-end justify-between gap-x-3 gap-y-2 ${actions === undefined ? "max-sm:sr-only" : ""}`}
+    >
       <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
         <PageTitle>{title}</PageTitle>
         {description !== undefined && (
