@@ -86,4 +86,28 @@ describe("GroveTour", () => {
     fireEvent.keyDown(screen.getByRole("dialog", { hidden: true }), { key: "ArrowLeft" });
     expect(title()).toBe("Welcome");
   });
+
+  test("a target wider than the screen is ringed only where it shows", () => {
+    Object.defineProperty(document.documentElement, "clientWidth", { configurable: true, value: 375 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 812 });
+    const wide = document.createElement("div");
+    wide.setAttribute("data-tour", "queue");
+    wide.getBoundingClientRect = () =>
+      ({ top: 100, left: -40, right: 1560, bottom: 148, width: 1600, height: 48 }) as DOMRect;
+    wide.scrollIntoView = () => {};
+    document.body.append(wide);
+    try {
+      mount("/queue");
+      fireEvent.click(screen.getByText("Next"));
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      const ring = document.querySelector<HTMLElement>(".ring-2");
+      expect(ring?.style.left).toBe("0px");
+      expect(ring?.style.width).toBe("375px");
+      expect(ring?.style.top).toBe("94px");
+    } finally {
+      wide.remove();
+    }
+  });
 });
