@@ -127,6 +127,20 @@ describe("GroveShell", () => {
     expect(within(header).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["Menu"]);
   });
 
+  test("a count on a page in the menu puts a dot on the menu button", () => {
+    render(
+      <GroveShell icon={null} nav={[...nav, { to: "/queue2", label: "Queue", badge: <span>3</span> }]} pathname="/parts" link={Link}>
+        <main />
+      </GroveShell>,
+    );
+    expect(screen.getByRole("button", { name: "Menu, something needs attention" })).toBeDefined();
+  });
+
+  test("no counts, no dot", () => {
+    mount("/parts");
+    expect(screen.getByRole("button", { name: "Menu" })).toBeDefined();
+  });
+
   test("shows the version beside the name", () => {
     mount("/parts");
     expect(screen.getByText("V38.02")).toBeDefined();

@@ -203,6 +203,7 @@ function Shell({
   const major = majorOf(version);
   const who = me?.name ?? me?.email ?? "Signed in";
   const tutorialLabel = `How ${label} works`;
+  const flagged = nav.some((item) => item.badge !== undefined && item.badge !== null && item.badge !== false);
 
   const navLink = (item: GroveNavItem, extra: Omit<GroveLinkProps, "to">) => (
     <Link
@@ -281,8 +282,22 @@ function Shell({
               </div>
             )}
             <GroveMenu
-              label="Menu"
-              button={<MenuIcon className="size-5" />}
+              label={flagged ? "Menu, something needs attention" : "Menu"}
+              button={
+                <>
+                  <MenuIcon className="size-5" />
+                  {/* A page in the menu has a count (Forms' unmatched
+                      responses, the Grove's reset requests): say so on the
+                      button while the pages are folded into it, or the
+                      count is out of sight on a phone. */}
+                  {flagged && (
+                    <span
+                      aria-hidden="true"
+                      className={`absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-background ${bp.folded}`}
+                    />
+                  )}
+                </>
+              }
               buttonClassName="relative flex size-9 shrink-0 items-center justify-center rounded-md text-foreground hover:bg-accent"
               panelClassName="w-[min(15rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-xl"
             >
