@@ -34,12 +34,14 @@ const PAD = 6;
 const GAP = 12;
 const MARGIN = 12;
 
-function findTarget(target: TourStep["target"]): HTMLElement | null {
+// The first visible match, and which selector it came from: an earlier
+// selector is the one the step means; later ones are fallbacks.
+function findTarget(target: TourStep["target"]): { element: HTMLElement; rank: number } | null {
   const selectors = target === undefined ? [] : Array.isArray(target) ? target : [target];
-  for (const selector of selectors) {
+  for (const [rank, selector] of selectors.entries()) {
     for (const element of document.querySelectorAll<HTMLElement>(selector)) {
       const rect = element.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) return element;
+      if (rect.width > 0 && rect.height > 0) return { element, rank };
     }
   }
   return null;
@@ -107,12 +109,19 @@ export function GroveTour({
     setSearching(true);
     const { pathname: here, navigate: go } = routeRef.current;
     if (step.route !== undefined && here !== step.route) go?.(step.route);
+    // A fallback (the ☰ menu standing in for a nav link) is always on
+    // screen, so it would win before the page has drawn the thing the step
+    // is really about. Wait up to a second for the first choice; take a
+    // fallback after that, and give up looking at 2.5 s.
     let tries = 0;
     const timer = window.setInterval(() => {
       tries += 1;
-      const element = findTarget(step.target);
-      if (element !== null || tries >= 25 || step.target === undefined) {
+      const found = findTarget(step.target);
+      const settled =
+        step.target === undefined || tries >= 25 || (found !== null && (found.rank === 0 || tries >= 10));
+      if (settled) {
         window.clearInterval(timer);
+        const element = found?.element ?? null;
         elementRef.current = element;
         element?.scrollIntoView({ block: "center", inline: "nearest" });
         measure();
