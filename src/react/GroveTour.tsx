@@ -93,11 +93,14 @@ export function GroveTour({
       return;
     }
     const rect = element.getBoundingClientRect();
-    setBox(
-      rect.width > 0 && rect.height > 0
-        ? { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
-        : null,
-    );
+    // Ring only the part on screen: a table wider than the phone, or a
+    // full-width toolbar, would otherwise put the ring past the edge, and
+    // the card would aim at the middle of something half off-screen.
+    const left = Math.max(rect.left, PAD);
+    const top = Math.max(rect.top, PAD);
+    const right = Math.min(rect.right, document.documentElement.clientWidth - PAD);
+    const bottom = Math.min(rect.bottom, window.innerHeight - PAD);
+    setBox(right > left && bottom > top ? { top, left, width: right - left, height: bottom - top } : null);
   }, []);
 
   // Each step: open its page, then look for its target for a moment — the
