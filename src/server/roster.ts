@@ -76,11 +76,40 @@ export type RosterSnapshot = {
 
 type RosterDto = Omit<RosterEntry, "entryId"> & { id: string };
 
+// One roster entry and one snapshot, as validators. An app's applySnapshot
+// mutation takes the snapshot as an argument; use these rather than a
+// hand-copied field list, which goes stale the day a field is added and
+// then rejects every sync.
+export const rosterEntryValidator = v.object({
+  entryId: v.string(),
+  name: v.string(),
+  email: v.string(),
+  altEmails: v.array(v.string()),
+  role: rosterRoleValidator,
+  year: v.number(),
+  userId: v.optional(v.string()),
+  github: v.optional(v.string()),
+  onshape: v.optional(v.string()),
+  slackId: v.optional(v.string()),
+  slackHandle: v.optional(v.string()),
+  subteam: v.optional(v.string()),
+  additionalGroups: v.array(v.string()),
+  proposedDeletion: v.boolean(),
+  accountStatus: v.optional(
+    v.union(v.literal("active"), v.literal("pending"), v.literal("archived")),
+  ),
+  picture: v.optional(v.string()),
+});
+
+export const rosterSnapshotValidator = v.object({
+  year: v.number(),
+  years: v.array(v.number()),
+  entries: v.array(rosterEntryValidator),
+});
+
 // Exactly the columns of groveRosterTable. The Grove may add roster fields
 // at any time; applyRosterSnapshot writes rows as-is, so an unknown field
-// would fail every insert. Keep only these, and ask the Grove for the
-// opt-in ones (ROSTER_INCLUDE) — that is what makes a new SDK version, and
-// nothing else, turn a new field on for an app.
+// would fail every insert. Keep only these.
 const ROSTER_FIELDS = [
   "name",
   "email",
@@ -99,7 +128,12 @@ const ROSTER_FIELDS = [
   "picture",
 ] as const satisfies readonly (keyof RosterEntry)[];
 
-const ROSTER_INCLUDE = ["picture"];
+// Roster fields the Grove sends only on request. Opt-in per app, not on by
+// default with the SDK: an app whose applySnapshot still lists its fields by
+// hand would reject a snapshot carrying one, and apps bump the SDK for
+// unrelated reasons. Ask for it in the same change that moves the app to
+// rosterSnapshotValidator.
+export type OptionalRosterField = "picture";
 
 export function rosterEntryFromDto(dto: RosterDto): RosterEntry {
   const entry: Record<string, unknown> = { entryId: dto.id };
@@ -123,10 +157,14 @@ export function groveSiteUrl(): string {
   return requireEnv("GROVE_SITE_URL").split(",")[0].trim().replace(/\/$/, "");
 }
 
-export async function fetchGroveRoster(year?: number): Promise<RosterSnapshot> {
+export async function fetchGroveRoster(
+  year?: number,
+  options: { include?: OptionalRosterField[] } = {},
+): Promise<RosterSnapshot> {
   const url = new URL("/api/v1/roster", groveSiteUrl());
   if (year !== undefined) url.searchParams.set("year", String(year));
-  url.searchParams.set("include", ROSTER_INCLUDE.join(","));
+  const include = options.include ?? [];
+  if (include.length > 0) url.searchParams.set("include", include.join(","));
   const response = await fetch(url, { headers: groveApiHeaders() });
   if (!response.ok) {
     throw new Error(`Grove roster request failed: ${response.status} ${await response.text()}`);
@@ -135,7 +173,14 @@ export async function fetchGroveRoster(year?: number): Promise<RosterSnapshot> {
   return {
     year: body.year,
     years: body.years,
-    entries: body.entries.map(rosterEntryFromDto),
+    entries: body.entries
+      .map(rosterEntryFromDto)
+      // Belt and braces: a field this app didn't ask for stays out even if
+      // the Grove sends it.
+      .map((entry) => {
+        if (!include.includes("picture")) delete entry.picture;
+        return entry;
+      }),
   };
 }
 

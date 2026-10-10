@@ -25,7 +25,16 @@ builds. Peer dependencies: `convex`, `@convex-dev/auth`, `react`,
 | `isManager`, `isCoach`, `roleAtLeast`, `userInGroup` | Pure checks on a `GroveUser` |
 | `groveRosterTable` | Schema fragment for the `groveRoster` mirror |
 | `fetchGroveRoster(year?)`, `applyRosterSnapshot(ctx, snapshot)` | Sync the mirror from `GET /api/v1/roster` (needs `GROVE_APP_KEY`) — see the template's `convex/grove.ts` |
-| `rosterForYear`, `rosterEntryById`, `rosterEntryForUser` | Read the mirror. Each entry carries `picture`, the person's Slack photo URL, when they have one (the fetch asks the Grove for it with `?include=picture`, and keeps only the table's own columns so a newer Grove can't break an older mirror) |
+| `rosterForYear`, `rosterEntryById`, `rosterEntryForUser` | Read the mirror. Entries carry `picture` (the person's Slack photo URL) once the app asks for it — below |
+| `rosterSnapshotValidator`, `rosterEntryValidator` | The argument validator for an app's `applySnapshot` mutation. Use these instead of listing roster fields by hand: a hand-copied list rejects the whole sync the day a field is added |
+
+**Photos are opt-in per app.** `fetchGroveRoster(year, { include: ["picture"] })`
+asks the Grove for each person's photo. Turn it on in the same change that
+moves the app's `applySnapshot` to `rosterSnapshotValidator` — an older
+hand-written validator has no `picture` and would reject every snapshot.
+Without `include` nothing changes, so bumping the SDK alone is safe. The fetch
+also keeps only the mirror table's own columns, so a field a newer Grove adds
+can't break an older app.
 | `proposeIdentity({ email, suggestedEntryId?, context? })` | Hand an unknown email to the Grove's Admin → Identities queue |
 | `notifyGroveDeployed({ sha, version? })` | Tell the Grove which commit just went live (`POST /api/v1/deployed`, needs `GROVE_APP_KEY`) — see [Report a problem](#report-a-problem) |
 | `tutorialViewsTable` | Schema fragment for the `tutorialViews` table |
