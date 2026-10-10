@@ -41,9 +41,12 @@ export {
   proposeIdentity,
   rosterEntryById,
   rosterEntryForUser,
+  rosterEntryValidator,
   rosterForYear,
   rosterRoleValidator,
+  rosterSnapshotValidator,
   type GroupVocabulary,
+  type OptionalRosterField,
   type RosterEntry,
   type RosterSnapshot,
 } from "./roster";

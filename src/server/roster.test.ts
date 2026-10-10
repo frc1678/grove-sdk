@@ -8,6 +8,7 @@ import {
   groveRosterTable,
   rosterEntryForUser,
   rosterForYear,
+  rosterSnapshotValidator,
   type RosterSnapshot,
 } from "./roster";
 
@@ -95,6 +96,14 @@ describe("roster mirror", () => {
   });
 });
 
+test("the snapshot validator and the mirror table have the same fields", () => {
+  const table = Object.keys(groveRosterTable.validator.fields)
+    .filter((key) => key !== "syncedAt")
+    .sort();
+  const entry = Object.keys(rosterSnapshotValidator.fields.entries.element.fields).sort();
+  expect(entry).toEqual(table);
+});
+
 describe("fetchGroveRoster", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -118,8 +127,63 @@ describe("fetchGroveRoster", () => {
     const result = await fetchGroveRoster(2027);
     expect(result.entries[0]).toMatchObject({ entryId: "e1", role: "coach" });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit];
+    // No optional fields unless the app asks (see OptionalRosterField).
     expect(String(url)).toBe("https://grove.convex.site/api/v1/roster?year=2027");
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer grove_abc");
+  });
+
+  // The Grove may add fields an older SDK's table doesn't have; writing
+  // one would fail every insert, so only known columns survive.
+  test("keeps the photo and drops fields the mirror table doesn't have", async () => {
+    vi.stubEnv("GROVE_SITE_URL", "https://grove.convex.site");
+    vi.stubEnv("GROVE_APP_KEY", "grove_abc");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            year: 2027,
+            years: [2027],
+            entries: [
+              {
+                id: "e1",
+                name: "A",
+                email: "a@x",
+                altEmails: [],
+                role: "student",
+                year: 2027,
+                additionalGroups: [],
+                proposedDeletion: false,
+                picture: "https://avatars.slack-edge.com/a.png",
+                pronouns: "she/her",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    // Not asked for: dropped even though the Grove sent it.
+    const [plain] = (await fetchGroveRoster()).entries;
+    expect(Object.keys(plain)).not.toContain("picture");
+    const fetchMock = vi.mocked(fetch);
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain("include");
+
+    const [entry] = (await fetchGroveRoster(undefined, { include: ["picture"] })).entries;
+    expect(String(fetchMock.mock.calls[1][0])).toContain("include=picture");
+    expect(entry.picture).toBe("https://avatars.slack-edge.com/a.png");
+    expect(Object.keys(entry)).not.toContain("pronouns");
+    expect(Object.keys(entry)).not.toContain("id");
+
+    // Every field fetched exists on the validator an app's applySnapshot
+    // mutation takes: an extra one is what would reject the whole sync.
+    const fields = rosterSnapshotValidator.fields.entries.element.fields;
+    expect(Object.keys(entry).filter((key) => !(key in fields))).toEqual([]);
+    const snapshotOut = { year: 2027, years: [2027], entries: [entry] };
+    const t = convexTest(schema, modules);
+    await t.run((ctx) => applyRosterSnapshot(ctx, snapshotOut));
+    const [mirrored] = await t.run((ctx) => rosterForYear(ctx, 2027));
+    expect(mirrored.picture).toBe("https://avatars.slack-edge.com/a.png");
   });
 
   test("surfaces a failed request", async () => {

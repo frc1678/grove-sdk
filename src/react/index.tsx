@@ -15,6 +15,8 @@ export {
   useMe,
 } from "./guards";
 export { DevSignIn } from "./DevSignIn";
+// A person's photo, or their initials.
+export { GroveAvatar, initials, type GroveAvatarSize } from "./GroveAvatar";
 export { GroveIcon } from "./GroveIcon";
 // The app bar every Grove app shares: mark, name and version; the page's
 // name in the middle on a phone; one menu for the nav and everything else.

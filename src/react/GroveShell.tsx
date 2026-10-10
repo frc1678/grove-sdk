@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState, type ComponentType, type ReactNode }
 import { useReportProblem } from "../report";
 import { GroveIcon } from "./GroveIcon";
 import { GroveMenu, GroveMenuItem, GroveMenuLabel, GroveMenuSeparator } from "./GroveMenu";
+import { GroveAvatar } from "./GroveAvatar";
 import { useMe } from "./guards";
 import {
   BookIcon,
@@ -350,7 +351,12 @@ function Shell({
               {theme !== undefined && <ThemeRow theme={theme} />}
               {menu}
               <GroveMenuSeparator />
-              <GroveMenuLabel>{who}</GroveMenuLabel>
+              <GroveMenuLabel>
+                <span className="flex min-w-0 items-center gap-2">
+                  {me != null && <GroveAvatar name={who} src={me.picture} size="sm" />}
+                  <span className="truncate">{who}</span>
+                </span>
+              </GroveMenuLabel>
               <GroveMenuItem icon={<LogOutIcon />} onSelect={() => void signOut()}>
                 Sign out
               </GroveMenuItem>
