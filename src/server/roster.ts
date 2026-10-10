@@ -39,6 +39,9 @@ export const groveRosterTable = defineTable({
   proposedDeletion: v.boolean(),
   // The linked Grove account's status (active/pending/archived), when known.
   accountStatus: v.optional(v.string()),
+  // The person's photo URL (their Slack profile photo, refreshed daily by
+  // the Grove), absent when they have none. Show it with GroveAvatar.
+  picture: v.optional(v.string()),
   syncedAt: v.number(),
 })
   .index("entryId", ["entryId"])
@@ -62,6 +65,7 @@ export type RosterEntry = {
   additionalGroups: string[];
   proposedDeletion: boolean;
   accountStatus?: "active" | "pending" | "archived";
+  picture?: string;
 };
 
 export type RosterSnapshot = {
@@ -71,6 +75,39 @@ export type RosterSnapshot = {
 };
 
 type RosterDto = Omit<RosterEntry, "entryId"> & { id: string };
+
+// Exactly the columns of groveRosterTable. The Grove may add roster fields
+// at any time; applyRosterSnapshot writes rows as-is, so an unknown field
+// would fail every insert. Keep only these, and ask the Grove for the
+// opt-in ones (ROSTER_INCLUDE) — that is what makes a new SDK version, and
+// nothing else, turn a new field on for an app.
+const ROSTER_FIELDS = [
+  "name",
+  "email",
+  "altEmails",
+  "role",
+  "year",
+  "userId",
+  "github",
+  "onshape",
+  "slackId",
+  "slackHandle",
+  "subteam",
+  "additionalGroups",
+  "proposedDeletion",
+  "accountStatus",
+  "picture",
+] as const satisfies readonly (keyof RosterEntry)[];
+
+const ROSTER_INCLUDE = ["picture"];
+
+export function rosterEntryFromDto(dto: RosterDto): RosterEntry {
+  const entry: Record<string, unknown> = { entryId: dto.id };
+  for (const field of ROSTER_FIELDS) {
+    if (dto[field] !== undefined) entry[field] = dto[field];
+  }
+  return entry as RosterEntry;
+}
 
 // ——— Talking to the Grove (actions only: this does network I/O) ———
 
@@ -89,6 +126,7 @@ export function groveSiteUrl(): string {
 export async function fetchGroveRoster(year?: number): Promise<RosterSnapshot> {
   const url = new URL("/api/v1/roster", groveSiteUrl());
   if (year !== undefined) url.searchParams.set("year", String(year));
+  url.searchParams.set("include", ROSTER_INCLUDE.join(","));
   const response = await fetch(url, { headers: groveApiHeaders() });
   if (!response.ok) {
     throw new Error(`Grove roster request failed: ${response.status} ${await response.text()}`);
@@ -97,7 +135,7 @@ export async function fetchGroveRoster(year?: number): Promise<RosterSnapshot> {
   return {
     year: body.year,
     years: body.years,
-    entries: body.entries.map(({ id, ...rest }) => ({ entryId: id, ...rest })),
+    entries: body.entries.map(rosterEntryFromDto),
   };
 }
 

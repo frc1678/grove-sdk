@@ -29,6 +29,8 @@ export type Me = {
   role?: Role;
   effectiveRole?: Role;
   status?: Status;
+  // Their photo URL (Slack's), when they have one. Newer Grove only.
+  picture?: string;
 };
 
 export type GroveRosterEntry = {
@@ -47,6 +49,8 @@ export type GroveRosterEntry = {
   subteam?: string;
   additionalGroups?: string[];
   proposedDeletion?: boolean;
+  // The live roster's name for the photo the mirror calls `picture`.
+  slackImage?: string;
 };
 
 export type GroveAppCard = {

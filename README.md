@@ -25,7 +25,7 @@ builds. Peer dependencies: `convex`, `@convex-dev/auth`, `react`,
 | `isManager`, `isCoach`, `roleAtLeast`, `userInGroup` | Pure checks on a `GroveUser` |
 | `groveRosterTable` | Schema fragment for the `groveRoster` mirror |
 | `fetchGroveRoster(year?)`, `applyRosterSnapshot(ctx, snapshot)` | Sync the mirror from `GET /api/v1/roster` (needs `GROVE_APP_KEY`) — see the template's `convex/grove.ts` |
-| `rosterForYear`, `rosterEntryById`, `rosterEntryForUser` | Read the mirror |
+| `rosterForYear`, `rosterEntryById`, `rosterEntryForUser` | Read the mirror. Each entry carries `picture`, the person's Slack photo URL, when they have one (the fetch asks the Grove for it with `?include=picture`, and keeps only the table's own columns so a newer Grove can't break an older mirror) |
 | `proposeIdentity({ email, suggestedEntryId?, context? })` | Hand an unknown email to the Grove's Admin → Identities queue |
 | `notifyGroveDeployed({ sha, version? })` | Tell the Grove which commit just went live (`POST /api/v1/deployed`, needs `GROVE_APP_KEY`) — see [Report a problem](#report-a-problem) |
 | `tutorialViewsTable` | Schema fragment for the `tutorialViews` table |
@@ -58,6 +58,7 @@ roster entry id (strings).
 | `useGroveQuery(groveApi.roster.list, { year })` | Live Grove queries from the browser |
 | `GroveShell`, `PageHeader`, `PageTitle` | The app bar every app shares, and a page's title (below) |
 | `GroveMenu`, `GroveMenuItem`, `GroveMenuSeparator`, `GroveMenuLabel` | The shell's menus, for an app's own extra menu items |
+| `GroveAvatar` | A person's photo, or their initials: `<GroveAvatar name={entry.name} src={entry.picture} size="xl" />`. Sizes `sm` 24px (table rows), `md` 32px, `lg` 40px, `xl` 56px (face grids). Decorative — keep the name beside it |
 | `PendingScreen`, `Spinner`, `DevSignIn` | House chrome |
 | `GroveTutorial`, `TutorialSlide`, `ChangelogEntry` | The first-run tutorial, the "What's new" note, and the full changelog (below) |
 | `ReportProblemButton`, `useReportContext`, `useReportProblem`, `ReportProvider` | Report a problem (below) |

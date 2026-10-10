@@ -118,8 +118,54 @@ describe("fetchGroveRoster", () => {
     const result = await fetchGroveRoster(2027);
     expect(result.entries[0]).toMatchObject({ entryId: "e1", role: "coach" });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit];
-    expect(String(url)).toBe("https://grove.convex.site/api/v1/roster?year=2027");
+    expect(String(url)).toBe(
+      "https://grove.convex.site/api/v1/roster?year=2027&include=picture",
+    );
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer grove_abc");
+  });
+
+  // The Grove may add fields an older SDK's table doesn't have; writing
+  // one would fail every insert, so only known columns survive.
+  test("keeps the photo and drops fields the mirror table doesn't have", async () => {
+    vi.stubEnv("GROVE_SITE_URL", "https://grove.convex.site");
+    vi.stubEnv("GROVE_APP_KEY", "grove_abc");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            year: 2027,
+            years: [2027],
+            entries: [
+              {
+                id: "e1",
+                name: "A",
+                email: "a@x",
+                altEmails: [],
+                role: "student",
+                year: 2027,
+                additionalGroups: [],
+                proposedDeletion: false,
+                picture: "https://avatars.slack-edge.com/a.png",
+                pronouns: "she/her",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const [entry] = (await fetchGroveRoster()).entries;
+    expect(entry.picture).toBe("https://avatars.slack-edge.com/a.png");
+    expect(Object.keys(entry)).not.toContain("pronouns");
+    expect(Object.keys(entry)).not.toContain("id");
+
+    const t = convexTest(schema, modules);
+    await t.run((ctx) =>
+      applyRosterSnapshot(ctx, { year: 2027, years: [2027], entries: [entry] }),
+    );
+    const [mirrored] = await t.run((ctx) => rosterForYear(ctx, 2027));
+    expect(mirrored.picture).toBe("https://avatars.slack-edge.com/a.png");
   });
 
   test("surfaces a failed request", async () => {
