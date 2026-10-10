@@ -67,7 +67,7 @@ roster entry id (strings).
 | `useGroveQuery(groveApi.roster.list, { year })` | Live Grove queries from the browser |
 | `GroveShell`, `PageHeader`, `PageTitle` | The app bar every app shares, and a page's title (below) |
 | `GroveMenu`, `GroveMenuItem`, `GroveMenuSeparator`, `GroveMenuLabel` | The shell's menus, for an app's own extra menu items |
-| `GroveAvatar` | A person's photo, or their initials: `<GroveAvatar name={entry.name} src={entry.picture} size="xl" />`. Sizes `sm` 24px (table rows), `md` 32px, `lg` 40px, `xl` 56px (face grids). Decorative — keep the name beside it |
+| `GroveAvatar` | A person's photo, or their initials: `<GroveAvatar name={entry.name} src={entry.picture} size="xl" />`. Sizes `xs` 20px (inside a badge), `sm` 24px (table rows), `md` 32px, `lg` 40px, `xl` 56px (face grids). Decorative — keep the name beside it |
 | `PendingScreen`, `Spinner`, `DevSignIn` | House chrome |
 | `GroveTutorial`, `TutorialSlide`, `ChangelogEntry` | The first-run tutorial, the "What's new" note, and the full changelog (below) |
 | `ReportProblemButton`, `useReportContext`, `useReportProblem`, `ReportProvider` | Report a problem (below) |

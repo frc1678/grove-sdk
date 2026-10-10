@@ -9,12 +9,14 @@ import { useEffect, useState } from "react";
 // to a screen reader. The Grove draws the same thing in
 // src/components/person-avatar.tsx; keep the two looking alike.
 //
-// Sizes: "sm" 24px for table rows and inline mentions, "md" 32px for lists,
+// Sizes: "xs" 20px inside a badge or chip, "sm" 24px for table rows and
+// inline mentions, "md" 32px for lists,
 // "lg" 40px, and "xl" 56px for face grids where recognising someone is the
 // point (attendance, who is in the shop).
-export type GroveAvatarSize = "sm" | "md" | "lg" | "xl";
+export type GroveAvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 const SIZES: Record<GroveAvatarSize, string> = {
+  xs: "size-5 text-[9px]",
   sm: "size-6 text-[10px]",
   md: "size-8 text-xs",
   lg: "size-10 text-sm",
