@@ -15,6 +15,7 @@
     "./react": "./src/react/index.tsx",
     "./client": "./src/client/index.ts",
     "./report": "./src/report/index.ts",
+    "./usage": "./src/usage/index.ts",
     "./theme.css": "./src/theme.css",
     "./package.json": "./package.json",
     "./groups": "./src/server/subteams.ts"

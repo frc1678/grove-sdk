@@ -2,7 +2,7 @@ import { anyApi, type FunctionReference } from "convex/server";
 
 // The Grove's public functions that apps call live from the browser, typed
 // by hand because the Grove's generated api isn't importable across repos.
-// Keep in step with grove/convex/{users,roster,apps,feedback}.ts.
+// Keep in step with grove/convex/{users,roster,apps,feedback,usage}.ts.
 
 type Query<A extends Record<string, unknown>, Ret> = FunctionReference<
   "query",
@@ -100,5 +100,13 @@ export const groveApi = {
     clientConfig: anyApi.feedback.clientConfig as Query<NoArgs, { sentryDsn: string | null }>,
     generateUploadUrl: anyApi.feedback.generateUploadUrl as Mutation<NoArgs, string>,
     submit: anyApi.feedback.submit as Mutation<FeedbackSubmission, { id: string }>,
+  },
+  usage: {
+    // Newer Grove only: an older one has no such function, and the tracker
+    // stops after a few failed sends.
+    record: anyApi.usage.record as Mutation<
+      { app: string; sessionId: string; events: Array<{ name: string; at: number; path?: string }> },
+      { recorded: number }
+    >,
   },
 };
