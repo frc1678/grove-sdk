@@ -67,6 +67,9 @@ export {
   useReportProblem,
   type ReportProviderProps,
 } from "../report";
+// Usage counts. GroveProvider records page views; call useGroveEvent (or
+// trackGroveEvent outside React) for the actions worth counting.
+export { trackGroveEvent, useGroveEvent } from "../usage";
 // The Vxx.yy badge. Pass it the string from the app's src/app-version.ts.
 export { GroveVersionBadge } from "./VersionBadge";
 export { type ChangelogEntry, type TutorialSlide } from "./tutorialState";

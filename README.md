@@ -413,6 +413,36 @@ and to `.github/workflows/deploy.yml`, after the `bun run deploy` step:
 The version is computed the same way the build computes the header's, so it
 needs the same `fetch-depth: 0` checkout the deploy job already has.
 
+## Usage counts
+
+The Grove counts how its apps are used, so improvements can be judged by
+what people actually do. `GroveProvider` records a page view whenever the
+path changes, while someone is signed in. Nothing to set up.
+
+For the actions worth counting, name them:
+
+```tsx
+import { useGroveEvent } from "@frc1678/grove-sdk/react";
+
+const track = useGroveEvent();
+// …
+track("mission.created");
+```
+
+Outside React, `trackGroveEvent("mission.created")` does the same. Names
+are lowercase letters, digits and `. _ : -`, at most 64 characters. Name
+the action, never the person or the record: the name is all that is sent.
+
+What the Grove keeps per event: the app, the event name, the page as a
+pattern (`/events/:id`, never the id), the day, the person's role and
+subteam (read by the Grove from the session, not sent by the app), and a
+random id for the browser tab's session. No user id, name or email. Raw
+events are deleted after 30 days; a nightly job keeps daily totals.
+
+The Grove itself mounts `GroveUsage` from `@frc1678/grove-sdk/usage`.
+Against a Grove without usage counting, the tracker stops after three
+failed sends.
+
 ## How trust works
 
 The Grove signs its JWTs and publishes the public key at

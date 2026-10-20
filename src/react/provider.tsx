@@ -22,6 +22,7 @@ import {
 } from "react";
 import { appSlugFromBase } from "../report/context";
 import { ReportProvider } from "../report";
+import { GroveUsage } from "../usage/GroveUsage";
 import { groveApi, type Me } from "./api";
 
 // One provider gives an app both halves of the Grove contract:
@@ -115,6 +116,7 @@ export function GroveProvider({
         signInPath={signInPath}
       >
         <GroveReport app={appSlug} version={version}>
+          <GroveUsageWhileSignedIn app={appSlug} />
           {children}
         </GroveReport>
       </GroveAuthCapture>
@@ -243,6 +245,13 @@ export function useGroveTokenBridge() {
 // query error: this sits above every app's routes and error boundaries,
 // and a failed lookup that only feeds Sentry's user field must never take
 // the whole app down with it.
+// Page views and useGroveEvent, counted by the Grove while someone is
+// signed in (see ../usage).
+function GroveUsageWhileSignedIn({ app }: { app: string }) {
+  const { grove, isAuthenticated } = useGrove();
+  return <GroveUsage client={grove} app={app} enabled={isAuthenticated} />;
+}
+
 function GroveReport({
   app,
   version,
