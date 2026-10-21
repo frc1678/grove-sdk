@@ -304,6 +304,8 @@ export class CellGridController<Row> implements GridActions {
     const target = e.target as Element;
     const key = this.keyOf(target);
     if (!key) return;
+    // This grid hears the rest of the gesture (the move, the lift).
+    activate(this);
     this.pointer = e.pointerType === "touch" ? "touch" : "mouse";
     const control = target.closest(CONTROL);
     if (control && this.el?.contains(control) && control.closest("[data-grid-col]") !== null) {

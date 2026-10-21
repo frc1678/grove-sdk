@@ -112,6 +112,14 @@ describe("useCellGrid", () => {
     expect(store["text/html"]).toContain("<td>Ready</td>");
   });
 
+  test("a tap on a phone selects the cell and brings up the action bar", () => {
+    render(<Page />);
+    fireEvent.pointerDown(cell("103"), { pointerType: "touch" });
+    fireEvent.pointerUp(window, { pointerType: "touch" });
+    expect(clip("copy").store["text/plain"]).toBe("103");
+    expect(screen.getByRole("toolbar", { name: "Selected cells" }).style.display).toBe("block");
+  });
+
   test("a click on a control inside a cell keeps the control's click and selects the cell", () => {
     render(<Page />);
     const trigger = screen.getByLabelText("Status of 102");
