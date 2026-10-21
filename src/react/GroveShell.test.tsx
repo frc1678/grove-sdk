@@ -243,6 +243,23 @@ describe("GroveShell", () => {
     expect(within(screen.getByRole("dialog", { name: "Menu" })).getByRole("menuitem", { name: "Preferences" })).toBeDefined();
   });
 
+  test("a page marked inMenu is never a tab: it heads the menu, and keeps its title", () => {
+    render(
+      <GroveShell icon={null} nav={[...nav, { to: "/settings", label: "Settings", inMenu: true }]} pathname="/settings" link={Link}>
+        <PageHeader title="Settings" />
+      </GroveShell>,
+    );
+    const header = screen.getByRole("banner");
+    expect(within(header).queryByRole("link", { name: "Settings" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const menu = screen.getByRole("dialog", { name: "Menu" });
+    const settings = within(menu).getByRole("menuitem", { name: "Settings" });
+    expect(settings.getAttribute("aria-current")).toBe("page");
+    // No tab says "Settings", so once the nav is inline the page's heading
+    // shows, rather than staying hidden as a repeat of the tab.
+    expect(screen.getByRole("heading", { level: 1 }).className).toContain("lg:not-sr-only");
+  });
+
   test("sign out is in the menu", async () => {
     mount("/parts");
     fireEvent.click(screen.getByRole("button", { name: "Menu" }));

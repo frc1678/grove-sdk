@@ -39,6 +39,21 @@ export {
   type ToolbarOption,
   type ToolbarSort,
 } from "./TableToolbar";
+// Spreadsheet behaviour on any table: select cells and ranges, drag the
+// corner to fill, copy and paste with Sheets, Excel and Notion.
+export {
+  parseNumber,
+  parseOption,
+  parseText,
+  ROW_CELL,
+  useCellGrid,
+  type CellChange,
+  type CellGrid,
+  type CellGridColumn,
+  type CellGridOptions,
+  type CellParser,
+  type ParseResult,
+} from "./cellGrid";
 export {
   GroveMenu,
   GroveMenuItem,

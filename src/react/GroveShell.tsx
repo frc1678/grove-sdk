@@ -13,6 +13,7 @@ import {
   MenuIcon,
   MonitorIcon,
   MoonIcon,
+  SettingsIcon,
   SparklesIcon,
   SunIcon,
 } from "./icons";
@@ -48,6 +49,12 @@ export type GroveNavItem = {
   // When "active" is more than a prefix match — a tab in the query string,
   // a detail page that belongs to another item.
   match?: (pathname: string) => boolean;
+  // Kept out of the page tabs at every width and listed at the top of the
+  // menu instead: Settings, which people visit rarely and which otherwise
+  // takes a tab's room beside the pages they work in.
+  inMenu?: boolean;
+  // The menu item's icon, for an `inMenu` page. Defaults to a gear.
+  icon?: ReactNode;
 };
 
 export type GroveTheme = {
@@ -208,7 +215,12 @@ function Shell({
   const namedLabel = useTutorialLabel();
   const tutorialLabel = namedLabel ?? `How ${label} works`;
   const touring = namedLabel !== undefined;
-  const flagged = nav.some((item) => item.badge !== undefined && item.badge !== null && item.badge !== false);
+  const hasBadge = (item: GroveNavItem) => item.badge !== undefined && item.badge !== null && item.badge !== false;
+  const pages = nav.filter((item) => item.inMenu !== true);
+  const menuPages = nav.filter((item) => item.inMenu === true);
+  const flagged = pages.some(hasBadge);
+  // A count on a page that always lives in the menu shows at every width.
+  const flaggedAlways = menuPages.some(hasBadge);
 
   const navLink = (item: GroveNavItem, extra: Omit<GroveLinkProps, "to">) => (
     <Link
@@ -256,7 +268,7 @@ function Shell({
           </div>
 
           <nav className={`${bp.inline} min-w-0 flex-1 items-center gap-0.5`}>
-            {nav.map((item) => {
+            {pages.map((item) => {
               const active = isNavActive(item, pathname);
               return (
                 <span key={item.to} className="contents">
@@ -289,7 +301,7 @@ function Shell({
             )}
             <GroveMenu
               tourId="menu"
-              label={flagged ? "Menu, something needs attention" : "Menu"}
+              label={flagged || flaggedAlways ? "Menu, something needs attention" : "Menu"}
               button={
                 <>
                   <MenuIcon className="size-5" />
@@ -297,10 +309,10 @@ function Shell({
                       responses, the Grove's reset requests): say so on the
                       button while the pages are folded into it, or the
                       count is out of sight on a phone. */}
-                  {flagged && (
+                  {(flagged || flaggedAlways) && (
                     <span
                       aria-hidden="true"
-                      className={`absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-background ${bp.folded}`}
+                      className={`absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-background ${flaggedAlways ? "" : bp.folded}`}
                     />
                   )}
                 </>
@@ -310,10 +322,10 @@ function Shell({
             >
               {/* The pages, one to a row, while the nav is folded away; from
                   `navFrom` they are in the header and only the rest is here. */}
-              {nav.length > 0 && (
+              {pages.length > 0 && (
                 <div role="none" className={bp.folded}>
                   <div role="none" className="grid gap-0.5">
-                    {nav.map((item) => (
+                    {pages.map((item) => (
                       <GroveMenuItem
                         key={item.to}
                         // A notch tighter than the rest, so Parts' thirteen
@@ -330,6 +342,17 @@ function Shell({
                   <GroveMenuSeparator />
                 </div>
               )}
+              {menuPages.map((item) => (
+                <GroveMenuItem
+                  key={item.to}
+                  icon={item.icon ?? <SettingsIcon />}
+                  active={isNavActive(item, pathname)}
+                  trailing={item.badge}
+                  render={(itemProps) => navLink(item, { ...itemProps, "data-tour": `nav:${item.to}` })}
+                >
+                  {item.label}
+                </GroveMenuItem>
+              ))}
               {reopenTutorial !== null && (
                 <GroveMenuItem icon={touring ? <CompassIcon /> : <BookIcon />} onSelect={reopenTutorial}>
                   {tutorialLabel}
@@ -364,7 +387,9 @@ function Shell({
           </div>
         </div>
       </header>
-      <PageTitleSlot.Provider value={{ node: titleNode, from: navFrom, section }}>{children}</PageTitleSlot.Provider>
+      {/* Only a tab in the header can make a title redundant: a page that
+          lives in the menu (Settings) keeps its heading at every width. */}
+      <PageTitleSlot.Provider value={{ node: titleNode, from: navFrom, section: sectionName(pages, pathname) }}>{children}</PageTitleSlot.Provider>
     </div>
   );
 }
