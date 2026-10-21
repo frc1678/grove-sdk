@@ -118,8 +118,10 @@ export class CellGridUI {
   private toastEl: HTMLElement;
   private sheet: HTMLDialogElement | null = null;
   private toastTimer = 0;
+  private grid: GridActions;
 
-  constructor(private grid: GridActions) {
+  constructor(grid: GridActions) {
+    this.grid = grid;
     injectStyles();
     this.layer = document.createElement("div");
     this.layer.className = "grove-grid-layer";
