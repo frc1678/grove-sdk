@@ -109,6 +109,7 @@ export class CellGridController<Row> implements GridActions {
   private cache: Layout | null = null;
   private ui: CellGridUI | null = null;
   private frame = 0;
+  private copiedByEvent = false;
 
   constructor(options: CellGridOptions<Row>) {
     this.options = options;
@@ -605,6 +606,17 @@ export class CellGridController<Row> implements GridActions {
 
   // The bar's Copy and Paste, for a phone with no ⌘C.
   async copyToClipboard() {
+    // First the browser's own copy, from the tap itself: it raises the
+    // copy event this grid already answers with both the text and the HTML
+    // table, and it works where the async clipboard is refused (an
+    // embedded browser, an older Safari). Must run before any await.
+    this.copiedByEvent = false;
+    try {
+      document.execCommand("copy");
+    } catch {
+      // Unsupported: the clipboard API below.
+    }
+    if (this.copiedByEvent) return;
     const matrix = this.copyMatrix();
     if (!matrix) return;
     try {
@@ -618,7 +630,7 @@ export class CellGridController<Row> implements GridActions {
       try {
         await navigator.clipboard.writeText(toTSV(matrix));
       } catch {
-        this.toast("This browser wouldn't copy. Try the keyboard shortcut.", { error: true });
+        this.toast("This browser blocked copying. Select the cells on a computer, or allow clipboard access.", { error: true });
         return;
       }
     }
@@ -707,6 +719,7 @@ export class CellGridController<Row> implements GridActions {
       e.preventDefault();
       e.clipboardData.setData("text/plain", toTSV(matrix));
       e.clipboardData.setData("text/html", toHTML(matrix));
+      this.copiedByEvent = true;
       if (e.type === "cut") {
         this.ants = null;
         void this.clearRange();
