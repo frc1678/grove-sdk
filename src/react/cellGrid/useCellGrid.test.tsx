@@ -199,6 +199,16 @@ describe("useCellGrid", () => {
     expect(clip("copy").store["text/plain"]).toBe("102");
   });
 
+  test("a selection in a modal draws above the modal", () => {
+    render(
+      <div role="dialog" aria-label="Diff">
+        <Page />
+      </div>,
+    );
+    fireEvent.pointerDown(cell("101"));
+    expect((document.querySelector(".grove-grid-layer") as HTMLElement).style.zIndex).toBe("60");
+  });
+
   test("a phone row whose list is hidden is not a column", () => {
     function Both() {
       const grid = useCellGrid<Part>({ rows: START, rowKey: (row) => row.id, columns: { number: {}, status: {} } });

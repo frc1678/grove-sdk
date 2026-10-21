@@ -280,6 +280,9 @@ export class CellGridController<Row> implements GridActions {
     if (!a || !b) return null;
     const ra = a.getBoundingClientRect();
     const rb = b.getBoundingClientRect();
+    // Hidden since the layout was read (the window narrowed past the
+    // table's breakpoint): nothing to draw, rather than a box at 0,0.
+    if ((ra.width === 0 && ra.height === 0) || (rb.width === 0 && rb.height === 0)) return null;
     const left = Math.min(ra.left, rb.left);
     const top = Math.min(ra.top, rb.top);
     return box(left, top, Math.max(ra.right, rb.right), Math.max(ra.bottom, rb.bottom));
@@ -294,7 +297,7 @@ export class CellGridController<Row> implements GridActions {
     }
     this.paintCells(range, layout);
     if (!range && !this.ui) return;
-    this.ui ??= new CellGridUI(this);
+    this.ui ??= new CellGridUI(this, this.el);
     const antsRange = this.ants ? (() => {
       const a = this.point(this.ants.anchor, layout);
       const b = this.point(this.ants.focus, layout);
@@ -636,7 +639,7 @@ export class CellGridController<Row> implements GridActions {
   }
 
   toast(message: string, options: { undo?: boolean; error?: boolean } = {}) {
-    this.ui ??= new CellGridUI(this);
+    this.ui ??= new CellGridUI(this, this.el);
     this.ui.toast(message, options);
   }
 
