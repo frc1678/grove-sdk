@@ -120,13 +120,18 @@ export class CellGridUI {
   private toastTimer = 0;
   private grid: GridActions;
 
-  constructor(grid: GridActions) {
+  constructor(grid: GridActions, container: HTMLElement | null) {
     this.grid = grid;
     injectStyles();
     this.layer = document.createElement("div");
     this.layer.className = "grove-grid-layer";
     this.layer.dataset.gridUi = "";
-    document.body.append(this.layer);
+    // A grid inside a dialog draws over it: inside a native <dialog> (the
+    // top layer, above any z-index), or above an app's modal (z-50) for a
+    // role="dialog" one. Otherwise under the app bar (z-20).
+    const dialog = container?.closest("dialog");
+    if (!dialog && container?.closest('[role="dialog"], [role="alertdialog"]')) this.layer.style.zIndex = "60";
+    (dialog ?? document.body).append(this.layer);
     this.boxes = {
       range: div("grove-grid-box grove-grid-range", this.layer),
       ants: div("grove-grid-box grove-grid-ants", this.layer),
