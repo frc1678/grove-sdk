@@ -186,6 +186,50 @@ describe("useCellGrid", () => {
     expect(clip("copy").store["text/plain"]).toBe("101\tReady\n102\tDone\n103\tReady");
   });
 
+  test("a grid inside a dialog keeps the keyboard and the clipboard", () => {
+    render(
+      <div role="dialog" aria-label="History" tabIndex={-1}>
+        <Page />
+      </div>,
+    );
+    fireEvent.pointerDown(cell("101"));
+    // A dialog's focus trap takes focus back to the dialog after the click.
+    screen.getByRole("dialog", { name: "History" }).focus();
+    press("ArrowDown");
+    expect(clip("copy").store["text/plain"]).toBe("102");
+  });
+
+  test("a phone row whose list is hidden is not a column", () => {
+    function Both() {
+      const grid = useCellGrid<Part>({ rows: START, rowKey: (row) => row.id, columns: { number: {}, status: {} } });
+      return (
+        <div ref={grid.ref}>
+          <ul style={{ display: "none" }}>
+            {START.map((row) => (
+              <li key={row.id} {...grid.rowCell(row)}>
+                {row.number} card
+              </li>
+            ))}
+          </ul>
+          <table>
+            <tbody>
+              {START.map((row) => (
+                <tr key={row.id}>
+                  <td {...grid.cell(row, "number")}>{row.number}</td>
+                  <td {...grid.cell(row, "status")}>{row.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    render(<Both />);
+    fireEvent.pointerDown(cell("101"));
+    press("a", { metaKey: true });
+    expect(clip("copy").store["text/plain"]).toBe("101\tready\n102\tdone\n103\tready");
+  });
+
   test("arrow keys move, shift extends, Escape drops the selection", () => {
     render(<Page />);
     fireEvent.pointerDown(cell("101"));

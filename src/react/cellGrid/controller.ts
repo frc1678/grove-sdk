@@ -69,9 +69,25 @@ const EDITOR = `${CONTROL}, button, [tabindex]:not([tabindex="-1"])`;
 // one does not drop the selection.
 const POPUP = '[role="listbox"], [role="menu"], [role="dialog"], [role="option"], [data-side], [data-grid-ui]';
 
-const isTyping = (el: Element | null) =>
-  el instanceof HTMLElement &&
-  (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.closest(POPUP) !== null);
+// Focus is where keys belong to something else: a text field, or a popup
+// opened over the grid (a select's list). A dialog the grid itself sits in
+// (a history table in a sheet) is not that.
+const isTyping = (el: Element | null, grid: HTMLElement | null) => {
+  if (!(el instanceof HTMLElement)) return false;
+  if (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return true;
+  const popup = el.closest(POPUP);
+  return popup !== null && !(grid !== null && popup.contains(grid));
+};
+
+// Shown, as far as the grid is concerned: neither the cell nor anything
+// between it and the grid's container is display: none (a phone's list
+// hidden from 768px hides its rows with it).
+function shown(el: HTMLElement, root: HTMLElement | null): boolean {
+  for (let node: HTMLElement | null = el; node && node !== root?.parentElement; node = node.parentElement) {
+    if (getComputedStyle(node).display === "none") return false;
+  }
+  return true;
+}
 
 // What the document's listeners need from whichever grid has a selection.
 type Routed = Pick<
@@ -170,7 +186,7 @@ export class CellGridController<Row> implements GridActions {
     // A column hides at a breakpoint as a whole, so one cell says whether it shows.
     const cols = [ROW_CELL, ...Object.keys(this.options.columns)].filter((key) => {
       const td = sample.get(key);
-      return td !== undefined && getComputedStyle(td).display !== "none";
+      return td !== undefined && shown(td, this.el);
     });
     this.cache = { rows, cols, cell: (r, c) => byRow.get(rows[r])?.get(cols[c]) };
     return this.cache;
@@ -627,8 +643,9 @@ export class CellGridController<Row> implements GridActions {
   // ---------- keyboard and clipboard events (routed from the document) ----------
 
   key(e: KeyboardEvent) {
-    if (!this.anchor || e.defaultPrevented || isTyping(document.activeElement)) return;
-    if (document.querySelector("dialog[open]")) return;
+    if (!this.anchor || e.defaultPrevented || isTyping(document.activeElement, this.el)) return;
+    // A dialog open over the grid (the app's menu) has the keyboard.
+    if ([...document.querySelectorAll("dialog[open]")].some((dialog) => !dialog.contains(this.el))) return;
     const mod = e.metaKey || e.ctrlKey;
     const k = e.key.toLowerCase();
     const arrows: Record<string, "up" | "down" | "left" | "right"> = {
@@ -677,7 +694,7 @@ export class CellGridController<Row> implements GridActions {
   }
 
   clipboard(e: ClipboardEvent) {
-    if (!this.anchor || !e.clipboardData || isTyping(document.activeElement)) return;
+    if (!this.anchor || !e.clipboardData || isTyping(document.activeElement, this.el)) return;
     if (e.type !== "paste") {
       // Text the person highlighted themselves copies as text.
       const selection = window.getSelection();
