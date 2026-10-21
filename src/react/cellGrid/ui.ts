@@ -119,6 +119,8 @@ export class CellGridUI {
   private sheet: HTMLDialogElement | null = null;
   private toastTimer = 0;
   private grid: GridActions;
+  private originX = 0;
+  private originY = 0;
 
   constructor(grid: GridActions, container: HTMLElement | null) {
     this.grid = grid;
@@ -126,12 +128,12 @@ export class CellGridUI {
     this.layer = document.createElement("div");
     this.layer.className = "grove-grid-layer";
     this.layer.dataset.gridUi = "";
-    // A grid inside a dialog draws over it: inside a native <dialog> (the
-    // top layer, above any z-index), or above an app's modal (z-50) for a
-    // role="dialog" one. Otherwise under the app bar (z-20).
-    const dialog = container?.closest("dialog");
-    if (!dialog && container?.closest('[role="dialog"], [role="alertdialog"]')) this.layer.style.zIndex = "60";
-    (dialog ?? document.body).append(this.layer);
+    // A grid inside a dialog keeps everything it draws inside that dialog:
+    // above the modal's backdrop, and inside what the modal counts as
+    // itself, so tapping the bar or a dot doesn't close it as a click
+    // outside. Otherwise on <body>, under the app bar (z-20).
+    const host = container?.closest<HTMLElement>('dialog, [role="dialog"], [role="alertdialog"]') ?? document.body;
+    host.append(this.layer);
     this.boxes = {
       range: div("grove-grid-box grove-grid-range", this.layer),
       ants: div("grove-grid-box grove-grid-ants", this.layer),
@@ -171,17 +173,23 @@ export class CellGridUI {
       else if (act === "clear") void grid.clearRange();
       else if (act === "edit") grid.edit();
     });
-    document.body.append(this.bar);
+    host.append(this.bar);
 
     this.toastEl = document.createElement("div");
     this.toastEl.className = "grove-grid-toast";
     this.toastEl.dataset.gridUi = "";
     this.toastEl.setAttribute("role", "status");
-    document.body.append(this.toastEl);
+    host.append(this.toastEl);
   }
 
   draw(state: DrawState) {
     const { clip } = state;
+    // Positions arrive in viewport coordinates. A modal centred with a
+    // transform makes "fixed" mean its own box, so shift by where the
+    // layer actually sits (0,0 on <body>).
+    const origin = this.layer.getBoundingClientRect();
+    this.originX = origin.left;
+    this.originY = origin.top;
     this.place(this.boxes.range, state.multi ? state.range : null, clip);
     this.place(this.boxes.active, state.active, clip);
     this.place(this.boxes.ants, state.ants, clip, 1);
@@ -190,13 +198,13 @@ export class CellGridUI {
     const visible = (x: number, y: number) => x >= clip.left && x <= clip.right && y >= clip.top && y <= clip.bottom;
     const corner = r && !state.touch && visible(r.right, r.bottom);
     this.handle.style.display = corner ? "block" : "none";
-    if (r && corner) Object.assign(this.handle.style, { left: `${r.right}px`, top: `${r.bottom}px` });
+    if (r && corner) Object.assign(this.handle.style, { left: `${r.right - this.originX}px`, top: `${r.bottom - this.originY}px` });
     const dots: [number, number][] = r ? [[r.left, r.top], [r.right, r.bottom]] : [];
     this.dots.forEach((dot, i) => {
       const at = dots[i];
       const show = state.touch && at !== undefined && visible(at[0], at[1]);
       dot.style.display = show ? "block" : "none";
-      if (show) Object.assign(dot.style, { left: `${at[0]}px`, top: `${at[1]}px` });
+      if (show) Object.assign(dot.style, { left: `${at[0] - this.originX}px`, top: `${at[1] - this.originY}px` });
     });
     const bar = state.touch && state.count > 0 && !state.editing;
     this.bar.style.display = bar ? "block" : "none";
@@ -220,8 +228,8 @@ export class CellGridUI {
     ];
     Object.assign(el.style, {
       display: "block",
-      left: `${left}px`,
-      top: `${top}px`,
+      left: `${left - this.originX}px`,
+      top: `${top - this.originY}px`,
       width: `${width}px`,
       height: `${height}px`,
       clipPath: inset.some((n) => n > 0) ? `inset(${inset.map((n) => `${n}px`).join(" ")})` : "",

@@ -120,6 +120,25 @@ describe("useCellGrid", () => {
     expect(screen.getByRole("toolbar", { name: "Selected cells" }).style.display).toBe("block");
   });
 
+  test("the phone bar's Copy goes through the browser's copy event, with both formats", async () => {
+    render(<Page />);
+    fireEvent.pointerDown(cell("101"), { pointerType: "touch" });
+    fireEvent.pointerUp(window, { pointerType: "touch" });
+    let copied: Record<string, string> = {};
+    // What a browser does on execCommand("copy") from a tap.
+    document.execCommand = (command: string) => {
+      if (command === "copy") copied = clip("copy").store;
+      return true;
+    };
+    const writeText = vi.fn();
+    Object.defineProperty(navigator, "clipboard", { value: { writeText, write: writeText }, configurable: true });
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    expect(copied["text/plain"]).toBe("101");
+    expect(copied["text/html"]).toContain("<td>101</td>");
+    expect(writeText).not.toHaveBeenCalled();
+    expect(await screen.findByText("Copied 1 cell")).toBeDefined();
+  });
+
   test("a click on a control inside a cell keeps the control's click and selects the cell", () => {
     render(<Page />);
     const trigger = screen.getByLabelText("Status of 102");
@@ -199,14 +218,19 @@ describe("useCellGrid", () => {
     expect(clip("copy").store["text/plain"]).toBe("102");
   });
 
-  test("a selection in a modal draws above the modal", () => {
+  test("in a modal, the selection, phone bar and toast live inside the modal", () => {
     render(
       <div role="dialog" aria-label="Diff">
         <Page />
       </div>,
     );
-    fireEvent.pointerDown(cell("101"));
-    expect((document.querySelector(".grove-grid-layer") as HTMLElement).style.zIndex).toBe("60");
+    fireEvent.pointerDown(cell("101"), { pointerType: "touch" });
+    fireEvent.pointerUp(window, { pointerType: "touch" });
+    const modal = screen.getByRole("dialog", { name: "Diff" });
+    // Above its backdrop, and a tap on the bar is not a click outside it.
+    expect(modal.contains(document.querySelector(".grove-grid-layer"))).toBe(true);
+    expect(modal.contains(screen.getByRole("toolbar", { name: "Selected cells" }))).toBe(true);
+    expect(modal.contains(document.querySelector(".grove-grid-toast"))).toBe(true);
   });
 
   test("a phone row whose list is hidden is not a column", () => {
