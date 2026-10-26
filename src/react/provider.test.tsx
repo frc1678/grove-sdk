@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
-import { describe, expect, test } from "vitest";
-import { GroveContext, useGroveTokenBridge, type GroveContextValue } from "./provider";
+import { ConvexReactClient } from "convex/react";
+import { describe, expect, test, vi } from "vitest";
+import { CLIENT_OPTIONS, GroveContext, useGroveTokenBridge, type GroveContextValue } from "./provider";
 
 // ConvexProviderWithAuth holds fetchAccessToken in an effect's dependencies.
 // If it changes identity when the Grove rotates its JWT, the effect's cleanup
@@ -75,5 +76,41 @@ describe("useGroveTokenBridge", () => {
     rotate("token-2");
     expect(await fetchAccessToken({ forceRefreshToken: false })).toBe("token-2");
     expect(await fetchAccessToken({ forceRefreshToken: true })).toBe("token-2");
+  });
+});
+
+describe("CLIENT_OPTIONS", () => {
+  // The option is spelled the way the installed Convex reads it: a client
+  // built with it registers no "Leave site?" handler at all. Without it,
+  // the first use of the client adds one.
+  test("leaves no beforeunload handler on the page", () => {
+    const add = vi.spyOn(window, "addEventListener");
+    // A socket that never connects: the test is about the handler, not the
+    // network, and a real one fails on CI after the test has finished.
+    class QuietSocket {
+      static readonly CONNECTING = 0;
+      static readonly OPEN = 1;
+      static readonly CLOSING = 2;
+      static readonly CLOSED = 3;
+      readyState = 0;
+      onopen = null;
+      onclose = null;
+      onerror = null;
+      onmessage = null;
+      send() {}
+      close() {
+        this.readyState = 3;
+      }
+    }
+    const client = new ConvexReactClient("https://example-test-123.convex.cloud", {
+      ...CLIENT_OPTIONS,
+      webSocketConstructor: QuietSocket as unknown as typeof WebSocket,
+    });
+    // The connection, and the handler with it, is made on first use.
+    client.connectionState();
+    expect(add.mock.calls.map(([type]) => type)).not.toContain("beforeunload");
+    add.mockRestore();
+    // Not awaited: Convex waits for a close event this socket never sends.
+    void client.close();
   });
 });

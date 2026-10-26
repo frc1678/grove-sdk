@@ -90,6 +90,15 @@ export type GroveProviderProps = {
   children: ReactNode;
 };
 
+// Convex's client asks "Leave site?" whenever the page unloads with a
+// request still out. In a Grove app that is nearly always a navigation the
+// app itself started — the sign-in redirect, a long Onshape action still
+// running when the Onshape panel reloads — and inside an iframe the prompt
+// blocks the host page too: Cancel leaves the panel stuck. Off for both
+// clients; a mutation lost to a closed tab is not worth that.
+/** @internal Exported for tests. */
+export const CLIENT_OPTIONS = { unsavedChangesWarning: false } as const;
+
 export function GroveProvider({
   groveUrl,
   appUrl,
@@ -101,8 +110,8 @@ export function GroveProvider({
 }: GroveProviderProps) {
   const clients = useMemo(
     () => ({
-      grove: new ConvexReactClient(groveUrl),
-      app: new ConvexReactClient(appUrl),
+      grove: new ConvexReactClient(groveUrl, CLIENT_OPTIONS),
+      app: new ConvexReactClient(appUrl, CLIENT_OPTIONS),
     }),
     [groveUrl, appUrl],
   );
