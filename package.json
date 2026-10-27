@@ -12,6 +12,7 @@
   "exports": {
     "./server": "./src/server/index.ts",
     "./build": "./src/build/index.js",
+    "./search-index": "./src/build/searchIndex.js",
     "./react": "./src/react/index.tsx",
     "./client": "./src/client/index.ts",
     "./report": "./src/report/index.ts",
