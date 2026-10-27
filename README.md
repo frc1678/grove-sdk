@@ -304,6 +304,77 @@ exactly what goes stale.
 A phone keeps the icon it saw when the app was added. After an icon change,
 remove the app from the home screen and add it again.
 
+## Search index
+
+The Grove's search finds pages across every app, so someone can type
+"buy a motor" and land on Harvest's Request page. Each app says which pages
+it has in `grove-index.json`, which `groveIndex()` writes at the root of the
+build, so it is served at `/<slug>/grove-index.json`. The Grove re-reads
+every app's file daily, when the app is saved in Admin → Apps, and on
+Refresh there.
+
+Keep the entries in `src/grove-index.ts`:
+
+```ts
+import { defineGroveIndex } from "@frc1678/grove-sdk/search-index"
+
+export default defineGroveIndex([
+  {
+    path: "/request",
+    title: "Request",
+    summary: "Ask the team to buy a part or supply.",
+    keywords: ["order", "buy", "purchase"],
+  },
+  { path: "/settings", title: "Settings", summary: "Set budgets and vendors.", minRole: "coach" },
+])
+```
+
+and pass them to the plugin:
+
+```ts
+import { groveIndex } from "@frc1678/grove-sdk/build"
+import searchIndex from "./src/grove-index.ts"
+
+export default defineConfig({
+  plugins: [react(), tailwindcss(), groveIndex(searchIndex)],
+})
+```
+
+`@frc1678/grove-sdk/search-index` imports nothing, so the app's nav can
+import `src/grove-index.ts` too. (`/build` also loads git and the
+filesystem, which do not belong in a browser bundle.) The dev server serves
+the same file, so a local Grove can read it from a running app.
+
+The rules, which the Grove's parser enforces and the plugin checks first.
+A bad entry fails `vite build` and `vite dev` with a message naming the
+entry and the rule, because the Grove would otherwise drop the whole file
+and the app would quietly vanish from search:
+
+- `path` — required. The path as the app's router sees it, without
+  `/<slug>`. Starts with `/` (not `//`), no backslashes, whitespace or
+  `://`, at most 200 characters. A query string is fine: `/orders?tab=open`.
+- `title` — required, 1–60 characters once trimmed.
+- `summary` — required, 1–200 characters once trimmed, plain text.
+- `keywords` — optional, at most 12, each 1–40 characters once trimmed.
+- `minRole` — optional, `student` (the default), `lead`, `coach` or
+  `admin`. It only decides who sees the result in search; the page still
+  enforces access itself.
+- At most 60 entries, and no two with the same path. Any other field is an
+  error, so a misspelt `minrole` cannot leave a coach page offered to
+  everyone.
+
+Writing good entries:
+
+- One entry per page people actually go to, including views that are worth
+  landing on directly (`/orders?tab=all`). Not every dialog or detail page.
+- The summary is one sentence saying what someone does there, in the words
+  a freshman would type: "Ask the team to buy a part or supply.", not
+  "Procurement request intake form."
+- Keywords are the synonyms the title and summary miss: "buy", "order" and
+  "purchase" for a Request page.
+- Leave out what the Grove already has: its own pages and "Report a
+  problem".
+
 ## Report a problem
 
 Every Grove app has a **Report a problem** button: a flag icon in the
