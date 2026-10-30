@@ -41,7 +41,8 @@ can't break an older app.
 | `tutorialSeenVersion(ctx)`, `recordTutorialView(ctx, version)` | What `<GroveTutorial>` reads and writes — see the template's `convex/tutorial.ts` |
 | `PRIMARY_SUBTEAMS`, `ADDITIONAL_GROUPS`, `ROLE_GROUPS`, `ALL_GROUPS`, `entryInGroup`, `matchSubteamValue` | The Grove's group vocabulary |
 | `seasonYearForDate` | FRC season year (fall starts the next year) |
-| `googleAccessToken(scopes)`, `slackApi`, `sendSlackDm` | Google service-account and Slack helpers, reading the app deployment's own env vars |
+| `groveSlack({ name, slug })` | Post to Slack as the app, by the posting rule — see [Slack](#slack) |
+| `googleAccessToken(scopes)`, `slackApi`, `sendSlackDm` | Google service-account and raw Slack helpers, reading the app deployment's own env vars (`sendSlackDm` posts as the shared bot) |
 | `findBestMatch`, `scoreMatch`, `normalizeName` | The identity fuzzy-matcher the Grove uses |
 
 Every function derives the caller from the token; never accept a user id as
@@ -303,6 +304,62 @@ exactly what goes stale.
 
 A phone keeps the icon it saw when the app was added. After an icon change,
 remove the app from the home screen and add it again.
+
+## Slack
+
+Every Grove app posts through one workspace bot, so without help every post
+says "grove" and nobody can mute one app, and an app that posts a new
+message per event buries the channel. `groveSlack` posts as the app and
+builds in the rule every app follows:
+
+1. **One message per item** — a request, an event, a task. Post it once,
+   keep its `{ channel, ts }` on the item's row, and edit it in place
+   (`chat.update`) when the item changes.
+2. **Later news goes in that message's thread**, not a new top-level post.
+   `broadcast` shows a reply in the channel too; keep it for news the whole
+   channel needs.
+3. **Anything that isn't urgent waits for a digest.** One post a day (or a
+   week) from a cron, and none when there's nothing in it.
+4. **Mention someone (`<@U…>`) only when they have to act.** Name anyone
+   else in plain text.
+5. **Every post comes from the app**: its name, and a PNG of its icon.
+
+```ts
+import { groveSlack, slackMention } from "@frc1678/grove-sdk/server"
+
+const slack = groveSlack({ name: "Chime", slug: "chime" }) // package.json's grove.name / grove.slug
+
+const item = await slack.upsert(request.slack, channel, { text, blocks }) // post, or edit in place
+await ctx.runMutation(internal.requests.setSlack, { id, slack: item })     // keep channel + ts
+await slack.reply(item, { text: `Approved by ${who}` })                    // later news, in the thread
+await slack.digest(channel, { title: "Waiting on review", lines })        // posts nothing if lines is empty
+await slack.dm(slackUserId, { text: `${slackMention(slackUserId)}, it's your turn` })
+```
+
+| Method | What |
+| --- | --- |
+| `post(channel, message)` | A new item's message. Returns `{ channel, ts }` (the channel as Slack's id, even if you passed a `#name`) |
+| `update(item, message)` | Edit it in place. An edit keeps its original author, so a message posted before the app moved to `groveSlack` stays "grove" |
+| `upsert(item?, channel, message)` | `update` when there's an item, else `post`. If the old message is gone (deleted, channel archived) it posts a new one; store what comes back |
+| `reply(item, message, { broadcast? })` | In the item's thread |
+| `digest(channel, { title, lines })` | `*title*` and a bullet per line; `null` and no post when `lines` is empty |
+| `dm(slackUserId, message)` | A direct message, as the app |
+| `sender()` | `{ username, icon_url }` to spread into a call the helper doesn't make (`chat.postEphemeral`, a hand-rolled client) |
+
+`message` is what `chat.postMessage` takes minus `channel`: `text`, and
+`blocks`, `unfurl_links` and the rest as you like. Errors throw
+`SlackApiError`, whose `code` is Slack's (`not_in_channel`, …) and whose
+message is still `Slack <method> failed: <code>`.
+
+**The icon** is the `icon-512.png` that [`groveHomeScreen()`](#the-home-screen-icon)
+draws from `favicon.svg`, at `<GROVE_SITE_URL>/<slug>/icon-512.png`; Slack
+ignores an SVG `icon_url`. Pass `iconUrl` for any other PNG. Against a local
+Grove there is no icon (Slack can't fetch `localhost`), just the name.
+
+**The scope.** Slack applies `username` and `icon_url` only when the shared
+Slack app has the `chat:write.customize` bot scope; without it Slack is
+reported to ignore them and post as "grove". Adding the scope means
+reinstalling the Slack app to the workspace.
 
 ## Search index
 
