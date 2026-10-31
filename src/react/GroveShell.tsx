@@ -23,7 +23,7 @@ import { TutorialProvider } from "./tutorialChrome";
 import { useOpenChangelog, useReopenTutorial, useTutorialLabel } from "./tutorialSlot";
 import { GroveVersionBadge } from "./VersionBadge";
 
-// The house chrome every Grove app shares, first built in Parts: one short
+// The house chrome every Grove app shares, first built in Foundry: one short
 // row with the app's mark, name and version on the left; the page's name
 // in the middle while the nav is folded away; and a menu on the right.
 //
@@ -98,7 +98,7 @@ export type GroveShellProps = {
   pathname: string;
   link: ComponentType<GroveLinkProps>;
   // From which width the nav sits inline. Pick the width at which every
-  // label fits on one row: Parts' twelve need xl.
+  // label fits on one row: Foundry's twelve need xl.
   navFrom?: NavBreakpoint;
   // The width the header's contents line up with; match the app's <main>.
   width?: "6xl" | "7xl" | "screen-2xl" | "full";
@@ -328,7 +328,7 @@ function Shell({
                     {pages.map((item) => (
                       <GroveMenuItem
                         key={item.to}
-                        // A notch tighter than the rest, so Parts' thirteen
+                        // A notch tighter than the rest, so Foundry's thirteen
                         // pages and Sign out fit on a phone without scrolling.
                         dense
                         active={isNavActive(item, pathname)}

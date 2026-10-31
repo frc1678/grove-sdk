@@ -80,7 +80,7 @@ screens get their classes).
 
 ## The app bar
 
-`GroveShell` is the header every Grove app shares, first built in Parts. One
+`GroveShell` is the header every Grove app shares, first built in Foundry. One
 row: the app's mark, name and version on the left; the page's name centred
 while the nav is folded away; a menu on the right.
 
