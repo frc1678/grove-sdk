@@ -1,8 +1,10 @@
 import type { SVGProps } from "react";
 
-// The Grove's mark: a fruit tree in the Citrus Circuits lime (#3cd52e,
-// sampled from the team logo). Three canopy circles, a trunk, and three
-// fruit, so it still reads at favicon size.
+// The Grove's mark: three trees on a ground line in the Citrus Circuits lime
+// (#3cd52e, sampled from the team logo) on a dark tile, drawn on the same
+// 24-unit grid and 2px stroke as the apps' Lucide icons. The canopies are
+// filled so it still reads at 16px; the middle one's tile-coloured outline is
+// what separates it from the two behind.
 //
 // Lives here so every app links back to the hub with the same mark instead
 // of its own stand-in. The colors are deliberately literal rather than
@@ -11,17 +13,21 @@ import type { SVGProps } from "react";
 // `public/favicon.svg`.
 export function GroveIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" {...props}>
-      <path fill="#8a5a34" d="M14.3 14h3.4v13.2a1.7 1.7 0 0 1-3.4 0z" />
-      <g fill="#3cd52e">
-        <circle cx="16" cy="11" r="8.4" />
-        <circle cx="9" cy="14.6" r="5.6" />
-        <circle cx="23" cy="14.6" r="5.6" />
-      </g>
-      <g fill="#158f0c">
-        <circle cx="10.8" cy="10.4" r="1.7" />
-        <circle cx="20.9" cy="9.4" r="1.7" />
-        <circle cx="16.4" cy="15.6" r="1.7" />
+    <svg viewBox="0 0 64 64" aria-hidden="true" {...props}>
+      <rect width="64" height="64" rx="14" fill="#1a1a1a" />
+      <g
+        transform="translate(8 8) scale(2)"
+        fill="none"
+        stroke="#3cd52e"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M5.5 14v7M18.5 14v7" />
+        <circle cx="5.5" cy="11.5" r="3.5" fill="#3cd52e" stroke="none" />
+        <circle cx="18.5" cy="11.5" r="3.5" fill="#3cd52e" stroke="none" />
+        <circle cx="12" cy="8" r="5.6" fill="#3cd52e" stroke="#1a1a1a" strokeWidth="1.5" />
+        <path d="M12 13v8M2 21h20" />
       </g>
     </svg>
   );
