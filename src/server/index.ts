@@ -57,7 +57,19 @@ export {
   tutorialViewsTable,
 } from "./tutorial";
 export { googleAccessToken, base64UrlEncode } from "./google";
-export { sendSlackDm, slackApi, slackToken } from "./slack";
+export {
+  groveSlack,
+  sendSlackDm,
+  slackApi,
+  SlackApiError,
+  slackMention,
+  slackSender,
+  slackToken,
+  type GroveSlack,
+  type GroveSlackApp,
+  type SlackItem,
+  type SlackMessage,
+} from "./slack";
 export {
   AUTO_ASSIGN_SCORE,
   findBestMatch,
