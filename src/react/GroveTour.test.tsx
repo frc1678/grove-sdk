@@ -25,7 +25,7 @@ const steps: TourStep[] = [
 
 function mount(pathname = "/", onFinish = () => {}) {
   const navigate = vi.fn();
-  render(<GroveTour steps={steps} appName="Parts" pathname={pathname} navigate={navigate} onFinish={onFinish} />);
+  render(<GroveTour steps={steps} appName="Foundry" pathname={pathname} navigate={navigate} onFinish={onFinish} />);
   // Let the step look for its target.
   act(() => {
     vi.advanceTimersByTime(3000);

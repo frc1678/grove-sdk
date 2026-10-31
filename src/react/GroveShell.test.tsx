@@ -11,7 +11,7 @@ const state = vi.hoisted(() => ({
 
 vi.mock("./provider", () => ({
   useGrove: () => ({
-    appName: "Parts",
+    appName: "Foundry",
     signOut: async () => {
       state.signedOut += 1;
     },
