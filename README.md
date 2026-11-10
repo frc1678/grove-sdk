@@ -541,6 +541,26 @@ and to `.github/workflows/deploy.yml`, after the `bun run deploy` step:
 The version is computed the same way the build computes the header's, so it
 needs the same `fetch-depth: 0` checkout the deploy job already has.
 
+## Named controls
+
+Every button, link and field needs a name a screen reader can say. An icon
+on its own is not one. `@frc1678/grove-sdk/lint` is an oxlint plugin that
+fails `bun run lint` on a control without a name; turn it on in the app's
+`.oxlintrc.json`:
+
+```json
+{
+  "jsPlugins": ["@frc1678/grove-sdk/lint"],
+  "rules": { "grove/labelled-control": "error" }
+}
+```
+
+It understands Base UI's `render={<Button />}` (the wrapper's text names the
+button) and looks inside `<Button>` and `…Trigger`/`…Close` parts, which the
+stock jsx-a11y rule does not. The fix is `aria-label="What it does"`, or
+visually hidden text inside the control. A select needs one too: its value
+("2026") is not its name ("Season").
+
 ## Usage counts
 
 The Grove counts how its apps are used, so improvements can be judged by
