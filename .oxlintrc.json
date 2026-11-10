@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "jsPlugins": ["./src/lint/index.js"],
+  "rules": {
+    "grove/labelled-control": "error"
+  }
+}
