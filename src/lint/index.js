@@ -33,10 +33,11 @@ function attributes(node) {
 function renderedElement(node) {
   for (const attr of attributes(node)) {
     if (attr.type !== "JSXAttribute" || attr.name.name !== "render") continue;
-    const value = attr.value;
-    if (value?.type === "JSXExpressionContainer" && value.expression.type === "JSXElement") {
-      return value.expression;
-    }
+    if (attr.value?.type !== "JSXExpressionContainer") continue;
+    // render={wide ? <Link /> : <a />}: either branch is the same control.
+    let value = attr.value.expression;
+    while (value.type === "ConditionalExpression") value = value.consequent;
+    if (value.type === "JSXElement") return value;
   }
   return null;
 }
@@ -117,7 +118,8 @@ const labelledControl = {
     return {
       JSXElement(node) {
         // The element inside render={...} is judged with its wrapper.
-        const parent = node.parent;
+        let parent = node.parent;
+        while (parent?.type === "ConditionalExpression") parent = parent.parent;
         if (
           parent?.type === "JSXExpressionContainer" &&
           parent.parent?.type === "JSXAttribute" &&

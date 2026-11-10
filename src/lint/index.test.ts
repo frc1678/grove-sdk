@@ -56,6 +56,7 @@ describe("grove/labelled-control", () => {
           `<SaveButton />`,
           `<Menu.Close />`,
           `<Button render={<a href="/y" />}>Go</Button>`,
+          `<Button render={p.hub ? <Link to="/y" /> : <a href="/y" />}>Go</Button>`,
           `<DialogTrigger render={<Button aria-label="Open menu" />}><Menu /></DialogTrigger>`,
           `<Button>{p.busy ? <Spinner /> : "Save"}</Button>`,
           `<a href="/x"><img src="a.png" alt="Citrus Circuits" /></a>`,
