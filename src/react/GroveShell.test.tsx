@@ -122,6 +122,7 @@ describe("GroveShell", () => {
     // Closed, so hidden from the accessibility tree; its items are there.
     const menu = document.querySelector<HTMLElement>('dialog[aria-label="Menu"]')!;
     expect(within(menu).getByRole("menuitem", { name: "Back to the Grove", hidden: true })).toBeDefined();
+    expect(within(menu).getByRole("menuitem", { name: "Help", hidden: true }).getAttribute("href")).toMatch(/^\/help/);
     expect(within(menu).getByRole("menuitem", { name: "Sign out", hidden: true })).toBeDefined();
     const header = document.querySelector("header")!;
     expect(within(header).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["Menu"]);

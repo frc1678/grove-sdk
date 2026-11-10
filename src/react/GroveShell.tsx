@@ -9,6 +9,7 @@ import {
   CompassIcon,
   ExternalIcon,
   FlagIcon,
+  HelpIcon,
   LogOutIcon,
   MenuIcon,
   MonitorIcon,
@@ -147,6 +148,16 @@ export function sectionName(nav: readonly GroveNavItem[], pathname: string): str
 // The major from "V38.04" — what the changelog is keyed by.
 function majorOf(version: string | undefined): string | undefined {
   return version?.split(".")[0] || undefined;
+}
+
+// The hub's Help page, opened on the app the person is in. Every app is
+// served under /<slug> on the Grove's origin, so the slug is the address's
+// first segment; outside a browser, or at the root, it is plain /help.
+export function helpHref(groveHref: string, pathname?: string): string {
+  const path = pathname ?? (typeof window === "undefined" ? "" : window.location.pathname);
+  const slug = /^\/([a-z][a-z0-9-]{1,31})(?:\/|$)/.exec(path)?.[1];
+  const base = `${groveHref.replace(/\/$/, "")}/help`;
+  return slug === undefined ? base : `${base}?app=${slug}`;
 }
 
 export function GroveShell(props: GroveShellProps) {
@@ -368,6 +379,10 @@ function Shell({
                   Report a problem
                 </GroveMenuItem>
               )}
+              {/* The Grove's guides, this app's first (the hub's /help). */}
+              <GroveMenuItem icon={<HelpIcon />} render={(itemProps) => <a href={helpHref(groveHref)} {...itemProps} />}>
+                Help
+              </GroveMenuItem>
               <GroveMenuItem icon={<GroveIcon />} render={(itemProps) => <a href={groveHref} {...itemProps} />}>
                 Back to the Grove
               </GroveMenuItem>
