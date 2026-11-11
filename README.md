@@ -561,6 +561,28 @@ stock jsx-a11y rule does not. The fix is `aria-label="What it does"`, or
 visually hidden text inside the control. A select needs one too: its value
 ("2026") is not its name ("Season").
 
+## No explanations in hover tooltips
+
+A `title` tooltip shows on hover, and a phone never hovers, so anything a
+person needs to read cannot live there. The same plugin has a second rule:
+
+```json
+{ "rules": { "grove/hover-only-hint": "error" } }
+```
+
+It flags `title` on text and on a control that already has a name. It leaves
+alone a `title` that only repeats the control's name (an icon-only button),
+truncated text (`truncate`, `line-clamp-*`), and component props such as
+`<Card title>`. Fix a finding by putting the words on the page. When they
+will not fit, use `GroveHint`, a small "?" that opens on a tap:
+
+```tsx
+import { GroveHint } from "@frc1678/grove-sdk/react";
+
+Banked <GroveHint label="What does Banked mean?">Extra meetings you can
+spend on a later absence.</GroveHint>
+```
+
 ## Usage counts
 
 The Grove counts how its apps are used, so improvements can be judged by

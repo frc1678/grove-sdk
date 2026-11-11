@@ -7,7 +7,7 @@ import { describe, expect, test } from "vitest";
 
 // Runs the real linter over a snippet, so the test covers the rule as
 // `bun run lint` applies it, including oxlint loading the plugin at all.
-function flaggedLines(body: string): number[] {
+function flaggedLines(body: string, rule = "labelled-control"): number[] {
   const dir = mkdtempSync(join(tmpdir(), "grove-lint-"));
   const file = join(dir, "sample.tsx");
   const config = join(dir, "config.json");
@@ -17,14 +17,14 @@ function flaggedLines(body: string): number[] {
     JSON.stringify({
       jsPlugins: [resolve("src/lint/index.js")],
       categories: { correctness: "off" },
-      rules: { "grove/labelled-control": "error" },
+      rules: { [`grove/${rule}`]: "error" },
     }),
   );
   const run = spawnSync(resolve("node_modules/.bin/oxlint"), ["-c", config, "-f", "unix", file], {
     encoding: "utf8",
   });
   const out = `${run.stdout}${run.stderr}`;
-  const lines = [...out.matchAll(/sample\.tsx:(\d+):\d+: .*labelled-control/g)].map((m) => Number(m[1]) - 1);
+  const lines = [...out.matchAll(new RegExp(`sample\\.tsx:(\\d+):\\d+: .*${rule}`, "g"))].map((m) => Number(m[1]) - 1);
   if (lines.length === 0 && run.status !== 0) throw new Error(out);
   return lines;
 }
@@ -62,6 +62,38 @@ describe("grove/labelled-control", () => {
           `<a href="/x"><img src="a.png" alt="Citrus Circuits" /></a>`,
           `<SelectTrigger aria-label="Season"><SelectValue /></SelectTrigger>`,
         ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("grove/hover-only-hint", () => {
+  test("flags an explanation that only a hover can show", () => {
+    expect(
+      flaggedLines(
+        [
+          `<span title="Required for your subteam">Req</span>`,
+          `<Button title="Clear the plate first">Start</Button>`,
+          `<td title={p.when}>{p.short}</td>`,
+          `<Button aria-label="Start" title="Clear the plate first"><Play /></Button>`,
+        ].join("\n"),
+        "hover-only-hint",
+      ),
+    ).toEqual([1, 2, 3, 4]);
+  });
+
+  test("leaves a control's name, truncated text, and component props alone", () => {
+    expect(
+      flaggedLines(
+        [
+          `<Button size="icon" title="Close"><X /></Button>`,
+          `<span className="truncate" title={p.full}>{p.full}</span>`,
+          `<span className={cn("line-clamp-2", p.extra)} title={p.full}>{p.full}</span>`,
+          `<Card title="Batteries" />`,
+          `<iframe title="Match video" src={p.src} />`,
+          `<span>Required</span>`,
+        ].join("\n"),
+        "hover-only-hint",
       ),
     ).toEqual([]);
   });

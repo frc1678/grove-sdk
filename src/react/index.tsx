@@ -18,6 +18,8 @@ export { DevSignIn } from "./DevSignIn";
 // A person's photo, or their initials.
 export { GroveAvatar, initials, type GroveAvatarSize } from "./GroveAvatar";
 export { GroveIcon } from "./GroveIcon";
+// A tap-to-open explanation, for where a hover tooltip would have gone.
+export { GroveHint } from "./GroveHint";
 // The app bar every Grove app shares: mark, name and version; the page's
 // name in the middle on a phone; one menu for the nav and everything else.
 export {
