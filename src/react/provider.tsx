@@ -85,7 +85,8 @@ export type GroveProviderProps = {
   version?: string;
   // The slug the app is registered under in Admin → Apps. Defaults to the
   // first segment of Vite's base ("/sim/" → "sim"), which every app already
-  // sets so the Grove can serve it under /<slug>.
+  // sets so the Grove can serve it under /<slug>. An app served at a path
+  // other than its slug (grove.path in package.json) must pass it.
   appSlug?: string;
   children: ReactNode;
 };

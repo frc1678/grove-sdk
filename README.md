@@ -541,6 +541,45 @@ and to `.github/workflows/deploy.yml`, after the `bun run deploy` step:
 The version is computed the same way the build computes the header's, so it
 needs the same `fetch-depth: 0` checkout the deploy job already has.
 
+## Page addresses
+
+Every page a person can reach has its own address, so a link in Slack, a
+calendar entry or a bookmark opens that page and nothing else:
+
+- **Every page in the nav has a path.** An app's bare address (`/chime`)
+  only redirects to its main page (`/chime/events`). Lists are plural
+  nouns, one thing is `/<list>/:id`, no abbreviations, no doubled words.
+- **A view worth linking to gets a path or a query parameter**, not only
+  component state: a tab people send each other, a filter a guide points
+  at.
+- **A new feature gets a new path.** Never reuse an old one for something
+  else.
+- **A renamed page keeps its old address forever.** List it, and call this
+  before the router starts (in `src/main.tsx`):
+
+```ts
+import { applyLegacyPaths } from "@frc1678/grove-sdk/client";
+
+applyLegacyPaths({
+  base: import.meta.env.BASE_URL,
+  previousBases: ["/parts/"], // only if the app itself moved
+  paths: [
+    ["/", "/events"],               // bare address → main page
+    ["/e/:id/*", "/events/:id/*"],  // :param is one segment, /* the rest
+  ],
+});
+```
+
+It rewrites the address bar in place (no reload), keeping the query string
+and hash. Keep an index route that redirects too, for links inside the app.
+
+**An app whose path differs from its slug** (Foundry: slug `parts`, served
+at `/foundry`) sets `package.json` → `grove.path`, builds with
+`base: /${path}/`, serves its files under both the path and the slug, and
+passes `appSlug` to `GroveProvider`, because the slug — not the path — is
+what its reports, usage and engagement are filed under. Its API routes stay
+under `/<slug>/api/…`: devices and webhooks are configured with them.
+
 ## Named controls
 
 Every button, link and field needs a name a screen reader can say. An icon
