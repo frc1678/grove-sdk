@@ -45,3 +45,11 @@ export function groveTokenFromStorage(groveUrl: string): string | null {
     return null;
   }
 }
+
+export {
+  applyLegacyPaths,
+  legacyTarget,
+  matchLegacyPattern,
+  type LegacyPath,
+  type LegacyPathOptions,
+} from "./legacyPaths";
