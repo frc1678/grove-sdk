@@ -26,6 +26,8 @@ export function GroveVersionBadge({
         className ??
         "shrink-0 select-none font-mono text-[0.6875rem] leading-none tabular-nums text-muted-foreground/70"
       }
+      // The changelog sheet explains versions; this tooltip is a desktop extra.
+      // oxlint-disable-next-line grove/hover-only-hint
       title={`Version ${version} — the first half moves when the tutorial changes, the second with every merge.`}
     >
       {version}
