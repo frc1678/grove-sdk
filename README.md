@@ -302,6 +302,12 @@ shell's dark background (`#0a0a0a`); the name under the icon is
 if `public/` also holds one of those files, since a hand-made copy is
 exactly what goes stale.
 
+Every link ends in `?v=` and a hash of the favicon, and so do the
+manifest's icon paths. The file names never change, and a cache can keep a
+fixed name for good: Convex static hosting takes `apple-touch-icon.png` for
+a content-hashed file and serves it immutable for a year. A redrawn favicon
+gives every icon a new address, so the new one is what gets fetched.
+
 A phone keeps the icon it saw when the app was added. After an icon change,
 remove the app from the home screen and add it again.
 

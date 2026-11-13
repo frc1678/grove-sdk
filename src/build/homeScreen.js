@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
@@ -29,6 +30,13 @@ import { Resvg, initWasm } from "@resvg/resvg-wasm";
 //   export default defineConfig({
 //     plugins: [react(), tailwindcss(), groveHomeScreen()],
 //   })
+//
+// Every link carries ?v=<hash of the favicon>. The files keep fixed names,
+// and a fixed name can be cached for good: Convex static hosting reads
+// "apple-touch-icon.png" as content-hashed ("touch-icon" fits its pattern)
+// and serves it immutable for a year, and Cloudflare kept the Grove's old
+// icon after a redraw. A new favicon is a new address, so no cache in the
+// way can hand a phone the old one.
 //
 // The name under the icon defaults to package.json's grove.name; the Grove,
 // which has no slug, passes { name } itself. The links are written into
@@ -108,8 +116,20 @@ export async function renderHomeScreenIcons(faviconSvg, { background = BACKGROUN
   });
 }
 
+/**
+ * A short hash of what the icons are drawn from: the favicon and the tile's
+ * colour. It changes exactly when the PNGs do.
+ */
+export function iconVersion(faviconSvg, background = BACKGROUND) {
+  return createHash("sha256").update(background).update("\0").update(faviconSvg).digest("hex").slice(0, 10);
+}
+
+function versioned(path, version) {
+  return version ? `${path}?v=${version}` : path;
+}
+
 /** The manifest's text. Icon paths are relative, so they resolve under /<slug>/. */
-export function homeScreenManifest({ name, background = BACKGROUND }) {
+export function homeScreenManifest({ name, background = BACKGROUND, version }) {
   return `${JSON.stringify(
     {
       name,
@@ -118,7 +138,7 @@ export function homeScreenManifest({ name, background = BACKGROUND }) {
       background_color: background,
       theme_color: background,
       icons: ICONS.filter(({ fileName }) => fileName !== "apple-touch-icon.png").map(
-        ({ fileName, size }) => ({ src: fileName, sizes: `${size}x${size}`, type: "image/png" }),
+        ({ fileName, size }) => ({ src: versioned(fileName, version), sizes: `${size}x${size}`, type: "image/png" }),
       ),
     },
     null,
@@ -127,10 +147,14 @@ export function homeScreenManifest({ name, background = BACKGROUND }) {
 }
 
 /** The <head> tags, with every path under Vite's base. */
-export function homeScreenTags({ name, base }) {
+export function homeScreenTags({ name, base, version }) {
   return [
-    { tag: "link", attrs: { rel: "apple-touch-icon", href: `${base}apple-touch-icon.png` }, injectTo: "head" },
-    { tag: "link", attrs: { rel: "manifest", href: `${base}${MANIFEST}` }, injectTo: "head" },
+    {
+      tag: "link",
+      attrs: { rel: "apple-touch-icon", href: versioned(`${base}apple-touch-icon.png`, version) },
+      injectTo: "head",
+    },
+    { tag: "link", attrs: { rel: "manifest", href: versioned(`${base}${MANIFEST}`, version) }, injectTo: "head" },
     { tag: "meta", attrs: { name: "apple-mobile-web-app-title", content: name }, injectTo: "head" },
   ];
 }
@@ -153,14 +177,15 @@ export function groveHomeScreen(options = {}) {
 
   // Drawn once per build, and again in dev only when favicon.svg changes.
   let cache;
+  const readFavicon = () => readFileSync(join(root, options.favicon ?? FAVICON), "utf8");
   async function files() {
-    const source = readFileSync(join(root, options.favicon ?? FAVICON), "utf8");
+    const source = readFavicon();
     if (cache?.source !== source) {
       const icons = await renderHomeScreenIcons(source, { background });
       const entries = icons.map(({ fileName, png }) => [fileName, { type: "image/png", body: png }]);
       entries.push([
         MANIFEST,
-        { type: "application/manifest+json", body: homeScreenManifest({ name, background }) },
+        { type: "application/manifest+json", body: homeScreenManifest({ name, background, version: iconVersion(source, background) }) },
       ]);
       cache = { source, files: new Map(entries) };
     }
@@ -198,7 +223,7 @@ export function groveHomeScreen(options = {}) {
       }
     },
     transformIndexHtml() {
-      return homeScreenTags({ name, base });
+      return homeScreenTags({ name, base, version: iconVersion(readFavicon(), background) });
     },
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
