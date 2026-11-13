@@ -9,6 +9,7 @@ import {
   composeTileSvg,
   groveHomeScreen,
   homeScreenManifest,
+  iconVersion,
   renderHomeScreenIcons,
 } from "./homeScreen.js";
 
@@ -77,6 +78,14 @@ test("the manifest's icons are relative, so they resolve under /<slug>/", () => 
   expect(manifest.icons.map((icon: { src: string }) => icon.src)).toEqual(["icon-192.png", "icon-512.png"]);
 });
 
+test("the icon version changes with the favicon and the tile, and only then", () => {
+  const v = iconVersion(OUTLINE);
+  expect(v).toMatch(/^[0-9a-f]{10}$/);
+  expect(iconVersion(OUTLINE)).toBe(v);
+  expect(iconVersion(OUTLINE.replace("</svg>", "<circle r='1'/></svg>"))).not.toBe(v);
+  expect(iconVersion(OUTLINE, "#ffffff")).not.toBe(v);
+});
+
 describe("groveHomeScreen in a Vite build", () => {
   const root = mkdtempSync(join(tmpdir(), "grove-home-screen-"));
   afterAll(() => rmSync(root, { recursive: true, force: true }));
@@ -104,10 +113,13 @@ describe("groveHomeScreen in a Vite build", () => {
     }
     expect(pngSize(readFileSync(join(outDir, "apple-touch-icon.png")))).toEqual([180, 180]);
     const html = readFileSync(join(outDir, "index.html"), "utf8");
-    expect(html).toContain('<link rel="apple-touch-icon" href="/chime/apple-touch-icon.png">');
-    expect(html).toContain('<link rel="manifest" href="/chime/manifest.webmanifest">');
+    const v = iconVersion(OUTLINE);
+    expect(html).toContain(`<link rel="apple-touch-icon" href="/chime/apple-touch-icon.png?v=${v}">`);
+    expect(html).toContain(`<link rel="manifest" href="/chime/manifest.webmanifest?v=${v}">`);
     expect(html).toContain('<meta name="apple-mobile-web-app-title" content="Chime">');
-    expect(JSON.parse(readFileSync(join(outDir, "manifest.webmanifest"), "utf8")).name).toBe("Chime");
+    const manifest = JSON.parse(readFileSync(join(outDir, "manifest.webmanifest"), "utf8"));
+    expect(manifest.name).toBe("Chime");
+    expect(manifest.icons.map((icon: { src: string }) => icon.src)).toEqual([`icon-192.png?v=${v}`, `icon-512.png?v=${v}`]);
   });
 
   test("refuses a hand-made copy in public/, which would go stale", async () => {

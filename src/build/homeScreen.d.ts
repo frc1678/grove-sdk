@@ -25,7 +25,9 @@ export declare function renderHomeScreenIcons(
   faviconSvg: string,
   options?: { background?: string },
 ): Promise<HomeScreenIcon[]>;
-export declare function homeScreenManifest(options: { name: string; background?: string }): string;
-export declare function homeScreenTags(options: { name: string; base: string }): HtmlTagDescriptor[];
+/** A short hash of the favicon and tile colour: the `?v=` on every icon link. */
+export declare function iconVersion(faviconSvg: string, background?: string): string;
+export declare function homeScreenManifest(options: { name: string; background?: string; version?: string }): string;
+export declare function homeScreenTags(options: { name: string; base: string; version?: string }): HtmlTagDescriptor[];
 /** Draws the home-screen PNGs and manifest from public/favicon.svg on every build. */
 export declare function groveHomeScreen(options?: HomeScreenOptions): Plugin;
