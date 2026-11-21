@@ -37,6 +37,7 @@ also keeps only the mirror table's own columns, so a field a newer Grove adds
 can't break an older app.
 | `proposeIdentity({ email, suggestedEntryId?, context? })` | Hand an unknown email to the Grove's Admin → Identities queue |
 | `notifyGroveDeployed({ sha, version? })` | Tell the Grove which commit just went live (`POST /api/v1/deployed`, needs `GROVE_APP_KEY`) — see [Report a problem](#report-a-problem) |
+| `groveHealthResponse()`, `reportGroveHealth(components)`, `rosterSyncHealth(run)`, `heartbeatHealth(device)` | Grove Health: the public `/<slug>/api/health` route, and the 5-minute report of the app's agents, jobs and keys (`POST /api/v1/health`) — see [Grove Health](#grove-health) |
 | `tutorialViewsTable` | Schema fragment for the `tutorialViews` table |
 | `tutorialSeenVersion(ctx)`, `recordTutorialView(ctx, version)` | What `<GroveTutorial>` reads and writes — see the template's `convex/tutorial.ts` |
 | `PRIMARY_SUBTEAMS`, `ADDITIONAL_GROUPS`, `ROLE_GROUPS`, `ALL_GROUPS`, `entryInGroup`, `matchSubteamValue` | The Grove's group vocabulary |
@@ -546,6 +547,66 @@ and to `.github/workflows/deploy.yml`, after the `bun run deploy` step:
 
 The version is computed the same way the build computes the header's, so it
 needs the same `fetch-depth: 0` checkout the deploy job already has.
+
+## Grove Health
+
+The Grove's Admin → Health watches every app from two sides. It loads the
+app's page and its `/<slug>/api/health` route every 5 minutes from outside,
+like a person would, and it takes what the app reports about its own
+insides: the agents and devices that check in with it, its jobs, its
+integrations, the keys it issues. Alerts go to whoever is on call.
+
+The public route answers "up" and a version, never data:
+
+```ts
+// convex/http.ts
+import { groveHealthResponse } from "@frc1678/grove-sdk/server"
+
+http.route({
+  path: `/${pkg.grove.slug}/api/health`,
+  method: "GET",
+  handler: httpAction(async () => groveHealthResponse({ version: pkg.version })),
+})
+```
+
+The report runs from a cron every 5 minutes. Its list is whole: a component
+the app stops listing is marked gone on the Grove. Send `lastSeenAt` and
+`expectEverySec` for anything that checks in, and the Grove turns it amber
+at twice its interval and red at three times on its own.
+
+```ts
+// convex/groveHealth.ts
+import { heartbeatHealth, reportGroveHealth, rosterSyncHealth } from "@frc1678/grove-sdk/server"
+
+export const components = internalQuery({
+  args: {},
+  handler: async (ctx) => [
+    rosterSyncHealth(await ctx.db.query("groveSyncRuns").order("desc").first()),
+    ...(await ctx.db.query("agents").take(100)).map((agent) =>
+      heartbeatHealth({ key: `agent:${agent.host}`, name: agent.host, lastSeenAt: agent.lastSeenAt, expectEverySec: 60 }),
+    ),
+  ],
+})
+
+export const report = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    await reportGroveHealth(await ctx.runQuery(internal.groveHealth.components, {}))
+  },
+})
+
+// convex/crons.ts
+crons.interval("grove health report", { minutes: 5 }, internal.groveHealth.report, {})
+```
+
+A component is `{ key, kind, status, name?, message?, lastSeenAt?,
+expectEverySec?, version?, host?, credential? }`, with `kind` one of
+`agent`, `job`, `integration`, `credential`, `service` and `status` one of
+`ok`, `warn`, `down`, `unknown`. Keys are lowercase words joined by
+`: . _ -`; the Grove files each under `<slug>:<key>`. A `credential` carries
+`createdAt`, `rotatedAt`, `expiresAt`, `lastUsedAt` and `policyDays`, so a
+key the app issues shows its age on the Grove's Secrets page. Never put a
+secret or a fingerprint of one in a report.
 
 ## Page addresses
 
