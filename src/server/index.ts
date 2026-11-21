@@ -52,6 +52,14 @@ export {
 } from "./roster";
 export { notifyGroveDeployed } from "./deployed";
 export {
+  groveHealthResponse,
+  heartbeatHealth,
+  reportGroveHealth,
+  rosterSyncHealth,
+  type GroveHealthComponent,
+  type GroveHealthStatus,
+} from "./health";
+export {
   recordTutorialView,
   tutorialSeenVersion,
   tutorialViewsTable,
