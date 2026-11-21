@@ -36,6 +36,8 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  Reflect.deleteProperty(URL, "createObjectURL");
+  Reflect.deleteProperty(URL, "revokeObjectURL");
 });
 
 function fakeClient({
@@ -69,6 +71,16 @@ const openSheet = () => screen.findByRole("textbox", { name: "What happened?" })
 function MatchContext() {
   useReportContext(() => ({ matchId: "m42", replayLog: [1, 2, 3] }));
   return null;
+}
+
+// jsdom has neither half of object URLs. Put on the class for one test and
+// taken off again in afterEach, so no later test sees them.
+function stubObjectUrls() {
+  let made = 0;
+  const revoked: string[] = [];
+  URL.createObjectURL = () => `blob:preview-${++made}`;
+  URL.revokeObjectURL = (url: string) => void revoked.push(url);
+  return revoked;
 }
 
 const screenshot = {
@@ -150,6 +162,77 @@ describe("ReportProvider", () => {
     const sentryCall = vi.mocked(captureGroveFeedback).mock.calls[0][0];
     expect(sentryCall).toMatchObject({ message: "The score froze at 42", app: "sim", kind: "idea" });
     expect(JSON.parse(sentryCall.contextJson).extra.matchId).toBe("m42");
+  });
+
+  test("images added in the sheet are uploaded and sent as attachments", async () => {
+    vi.mocked(captureViewport).mockResolvedValue(screenshot);
+    let uploads = 0;
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ storageId: `storage-${++uploads}` }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const revoked = stubObjectUrls();
+    const { client, calls } = fakeClient();
+    render(
+      <ReportProvider client={client} app="sim">
+        <ReportProblemButton />
+      </ReportProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Report a problem" }));
+    const text = await openSheet();
+    await screen.findByAltText("Screenshot of the page");
+
+    const photo = new File(["jpeg"], "intake.jpg", { type: "image/jpeg" });
+    const capture = new File(["png"], "driver-station.png", { type: "image/png" });
+    const notes = new File(["text"], "notes.txt", { type: "text/plain" });
+    const picker = screen.getByLabelText("Images to attach");
+    fireEvent.change(picker, { target: { files: [photo, notes] } });
+    // The text file is turned away, and said so; the photo stays.
+    expect(screen.getByRole("alert").textContent).toBe("Only images can be attached.");
+    fireEvent.change(picker, { target: { files: [capture] } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    // A picture on the clipboard is added too, and one taken back off.
+    const pasted = new File(["x"], "pasted.png", { type: "image/png" });
+    fireEvent.paste(text, { clipboardData: { types: ["Files"], files: [pasted] } });
+    expect(screen.getByText("3 of 4 images attached.")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Remove pasted.png" }));
+    expect(screen.getByText("2 of 4 images attached.")).toBeDefined();
+    expect(revoked).toEqual(["blob:preview-3"]);
+    // Text copied from a document, which carries a picture of itself, is text.
+    fireEvent.paste(text, { clipboardData: { types: ["text/plain", "Files"], files: [pasted] } });
+    expect(screen.getByText("2 of 4 images attached.")).toBeDefined();
+
+    fireEvent.change(text, { target: { value: "The intake jams" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText("Sent — thanks")).toBeDefined();
+
+    // The screenshot first, then each image under its own type.
+    const types = (fetchMock.mock.calls as unknown as [string, RequestInit][]).map(
+      ([, init]) => (init.headers as Record<string, string>)["Content-Type"],
+    );
+    expect(types).toEqual(["image/png", "image/jpeg", "image/png"]);
+    const submitted = calls.find((call) => call.name === "feedback:submit")!.args;
+    expect(submitted).toMatchObject({ screenshot: "storage-1", attachments: ["storage-2", "storage-3"] });
+  });
+
+  test("a fifth image is turned away", async () => {
+    vi.mocked(captureViewport).mockResolvedValue(screenshot);
+    stubObjectUrls();
+    const { client } = fakeClient();
+    render(
+      <ReportProvider client={client} app="sim">
+        <ReportProblemButton />
+      </ReportProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Report a problem" }));
+    await openSheet();
+
+    const five = Array.from({ length: 5 }, (_, at) => new File(["png"], `${at}.png`, { type: "image/png" }));
+    fireEvent.change(screen.getByLabelText("Images to attach"), { target: { files: five } });
+
+    expect(screen.getByText("4 of 4 images attached.")).toBeDefined();
+    expect(screen.getByRole("alert").textContent).toBe("A report takes up to 4 images.");
+    expect((screen.getByRole("button", { name: "Add images" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   test("Alt+Shift+R opens it, and a failed capture still opens it", async () => {

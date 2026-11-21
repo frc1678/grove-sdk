@@ -70,6 +70,9 @@ export type FeedbackSubmission = {
   kind: "bug" | "idea";
   text: string;
   screenshot?: string;
+  // Images the reporter added. Left out when there are none, so a Grove
+  // from before it took them still accepts the report.
+  attachments?: string[];
   sentryEventId?: string;
   context: {
     url: string;
