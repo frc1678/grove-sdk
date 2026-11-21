@@ -76,6 +76,12 @@ export async function reportGroveHealth(
     headers: { ...groveApiHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({ ...options, components }),
   });
+  // A Grove from before Grove Health has no such route: say so once per
+  // run and carry on, so an app can ship this before the Grove does.
+  if (response.status === 404) {
+    console.warn("Grove Health: this Grove doesn't take health reports yet (404); nothing sent");
+    return { components: 0 };
+  }
   if (!response.ok) {
     throw new Error(`Grove health report failed: ${response.status} ${await response.text()}`);
   }

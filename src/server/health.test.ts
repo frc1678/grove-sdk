@@ -47,6 +47,14 @@ test("throws with the Grove's status and reason", async () => {
   await expect(reportGroveHealth([])).rejects.toThrow(/400 bad component/);
 });
 
+test("a Grove without the route yet is not an error", async () => {
+  vi.stubEnv("GROVE_SITE_URL", "https://grove.citruscircuits.org");
+  vi.stubEnv("GROVE_APP_KEY", "grove_abc");
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("Not found", { status: 404 })));
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  expect(await reportGroveHealth([])).toEqual({ components: 0 });
+});
+
 test("roster sync and heartbeat components", () => {
   expect(rosterSyncHealth(null).status).toBe("unknown");
   expect(rosterSyncHealth({ syncedAt: 5, error: "HTTP 401" })).toMatchObject({ status: "warn", message: "HTTP 401" });
