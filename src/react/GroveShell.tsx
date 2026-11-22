@@ -9,6 +9,7 @@ import {
   CompassIcon,
   ExternalIcon,
   FlagIcon,
+  GraduationIcon,
   HelpIcon,
   LogOutIcon,
   MenuIcon,
@@ -21,7 +22,13 @@ import {
 import { PageTitleSlot, type NavBreakpoint } from "./PageTitle";
 import { useGrove } from "./provider";
 import { TutorialProvider } from "./tutorialChrome";
-import { useOpenChangelog, useReopenTutorial, useTutorialLabel } from "./tutorialSlot";
+import {
+  useOpenChangelog,
+  useOpenTutorials,
+  useReopenTutorial,
+  useTutorialLabel,
+  useTutorialsBadge,
+} from "./tutorialSlot";
 import { GroveVersionBadge } from "./VersionBadge";
 
 // The house chrome every Grove app shares, first built in Foundry: one short
@@ -191,6 +198,8 @@ function Shell({
   const report = useReportProblem();
   const reopenTutorial = useReopenTutorial();
   const openChangelog = useOpenChangelog();
+  const openTutorials = useOpenTutorials();
+  const tutorialsBadge = useTutorialsBadge();
   const [titleNode, setTitleNode] = useState<HTMLElement | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLSpanElement>(null);
@@ -244,9 +253,11 @@ function Shell({
   return (
     // overflow-x-clip, not -hidden: hidden would make this a scroll
     // container and break the sticky header. --grove-header is the header's
-    // height including its border, for pages that fill the viewport.
-    <div className="flex min-h-svh flex-col overflow-x-clip bg-background text-foreground [--grove-header:calc(3rem_+_1px)] sm:[--grove-header:calc(3.5rem_+_1px)]">
-      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur print:hidden">
+    // height including its border, for pages that fill the viewport. In
+    // tutorial mode a strip sits above the header (--grove-tutorial-top), and
+    // counts as part of it.
+    <div className="flex min-h-svh flex-col overflow-x-clip bg-background text-foreground [--grove-header:calc(3rem_+_1px_+_var(--grove-tutorial-top,0px))] sm:[--grove-header:calc(3.5rem_+_1px_+_var(--grove-tutorial-top,0px))]">
+      <header className="sticky top-[var(--grove-tutorial-top,0px)] z-20 border-b bg-background/95 backdrop-blur print:hidden">
         <div ref={barRef} className={`relative mx-auto flex h-12 w-full ${WIDTH[width]} items-center gap-2 px-4 sm:h-14`}>
           {/* The version beside the name, where the eye already goes to work
               out which app this is; on a phone under it, small, to leave the
@@ -367,6 +378,11 @@ function Shell({
               {reopenTutorial !== null && (
                 <GroveMenuItem icon={touring ? <CompassIcon /> : <BookIcon />} onSelect={reopenTutorial}>
                   {tutorialLabel}
+                </GroveMenuItem>
+              )}
+              {openTutorials !== null && (
+                <GroveMenuItem icon={<GraduationIcon />} trailing={tutorialsBadge} onSelect={openTutorials}>
+                  Tutorials
                 </GroveMenuItem>
               )}
               {openChangelog !== null && (

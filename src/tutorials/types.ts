@@ -1,0 +1,137 @@
+import type { FunctionArgs, FunctionReference, FunctionReturnType } from "convex/server";
+import type { ReactNode } from "react";
+import type { TutorialCatalogEntry, TutorialRole } from "../build/tutorialCatalog";
+import { functionName, type FunctionName, type SandboxEffect, type SandboxTools } from "../sandbox";
+
+// A hands-on tutorial: a short task done in the real app, in tutorial mode,
+// where nothing is saved (../sandbox/sandbox.ts).
+//
+// It is written in two halves. The catalog entry (src/tutorial-catalog.ts)
+// is what the Grove lists: id, title, summary, points. The script
+// (src/tutorials.tsx) is the steps and the practice effects, keyed by the
+// same id. defineTutorials joins them.
+
+// What moves a step on. Without one the step has a Next button; with one it
+// waits for the person to do the thing, and offers "Skip this step" so a
+// page that looks different from what the author expected is never a dead
+// end.
+export type TutorialUntil =
+  // They made this write (a mutation or action), practised or not.
+  | { did: FunctionName; when?: (args: any) => boolean }
+  // They clicked something matching this selector.
+  | { click: string }
+  // Something matching this selector is on screen: a dialog opened.
+  | { see: string }
+  // Nothing matching it is: the dialog closed.
+  | { gone: string }
+  // They reached this page: an exact router path, or a test of it.
+  | { at: string | ((pathname: string) => boolean) }
+  // A field matching this selector holds a value (that `matches` accepts).
+  | { value: string; matches?: (value: string) => boolean };
+
+export type TutorialStep = {
+  title: string;
+  body: ReactNode;
+  // The page (router path, "/events") this step starts on. The tutorial
+  // goes there when the step opens, unless it is already there.
+  route?: string;
+  // What to ring: CSS selectors tried in order, the first one visible wins.
+  // Best a `data-tour` attribute the app puts on the control. Unlike the
+  // tour, the page under the ring stays live: the person uses it.
+  target?: string | string[];
+  until?: TutorialUntil;
+};
+
+export type TutorialScript = {
+  steps: TutorialStep[];
+  // What each write the tutorial practises would have changed on screen.
+  // A write with no effect here is dropped and the person is told.
+  effects?: SandboxEffect[];
+  // Functions that are safe to really run: actions that only read.
+  allow?: FunctionName[];
+  // Lays down practice documents before the first step, for a task that
+  // needs something to act on which the real data may not have today.
+  setup?: (tools: SandboxTools) => void;
+};
+
+export type Tutorial = TutorialCatalogEntry & TutorialScript;
+
+// Join the catalog with its scripts. The types make a missing or misspelt
+// id a compile error when the catalog comes from defineTutorialCatalog.
+export function defineTutorials<const C extends readonly TutorialCatalogEntry[]>(
+  catalog: C,
+  scripts: Record<C[number]["id"], TutorialScript>,
+): Tutorial[] {
+  return catalog.map((entry) => {
+    const script = (scripts as Record<string, TutorialScript | undefined>)[entry.id];
+    if (script === undefined) throw new Error(`[grove] tutorial "${entry.id}" has no steps`);
+    return { ...entry, ...script };
+  });
+}
+
+// One practised write:
+//
+//   practice(api.tasks.create, (args, box) => {
+//     const task = box.doc("task", { title: args.title, done: false });
+//     box.insert(api.tasks.list, task);
+//     return task._id;
+//   })
+export function practice<Fn extends FunctionReference<"mutation" | "action">>(
+  fn: Fn,
+  run: (args: FunctionArgs<Fn>, tools: SandboxTools) => FunctionReturnType<Fn> | void,
+): SandboxEffect {
+  return { name: functionName(fn), run };
+}
+
+const ORDER: Record<TutorialRole, number> = { student: 0, lead: 1, coach: 2, admin: 3 };
+
+// The tutorials offered to someone in this role. An unknown role (still
+// loading) is offered what a student is.
+export function tutorialsFor<T extends { minRole?: TutorialRole }>(
+  tutorials: readonly T[],
+  role: TutorialRole | undefined,
+): T[] {
+  const rank = ORDER[role ?? "student"];
+  return tutorials.filter((tutorial) => ORDER[tutorial.minRole ?? "student"] <= rank);
+}
+
+// The path part of a step's route: "/orders?tab=open" is on "/orders".
+export function routePath(route: string): string {
+  return route.split(/[?#]/)[0];
+}
+
+// Whether a step's condition holds right now. `did` is not here: it is an
+// event, not a state, and the runner listens for it.
+export function untilMet(until: TutorialUntil, pathname: string, root: ParentNode): boolean {
+  if ("at" in until) {
+    return typeof until.at === "string" ? routePath(until.at) === pathname : until.at(pathname);
+  }
+  if ("see" in until) return visible(root, until.see) !== null;
+  if ("gone" in until) return visible(root, until.gone) === null;
+  if ("value" in until) {
+    for (const element of root.querySelectorAll(until.value)) {
+      const value = (element as HTMLInputElement).value ?? element.textContent ?? "";
+      if (value.trim() !== "" && (until.matches === undefined || until.matches(value))) return true;
+    }
+    return false;
+  }
+  return false;
+}
+
+// The first element matching the selector that takes up space on screen.
+export function visible(root: ParentNode, selector: string): HTMLElement | null {
+  for (const element of root.querySelectorAll<HTMLElement>(selector)) {
+    const rect = element.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) return element;
+  }
+  return null;
+}
+
+export function findTarget(root: ParentNode, target: TutorialStep["target"]): HTMLElement | null {
+  const selectors = target === undefined ? [] : Array.isArray(target) ? target : [target];
+  for (const selector of selectors) {
+    const element = visible(root, selector);
+    if (element !== null) return element;
+  }
+  return null;
+}

@@ -23,6 +23,7 @@ import {
 import { appSlugFromBase } from "../report/context";
 import { ReportProvider } from "../report";
 import { GroveUsage } from "../usage/GroveUsage";
+import { SandboxConvexClient } from "../sandbox/client";
 import { groveApi, type Me } from "./api";
 
 // One provider gives an app both halves of the Grove contract:
@@ -40,7 +41,11 @@ type SignIn = ReturnType<typeof useAuthActions>["signIn"];
 
 export type GroveContextValue = {
   grove: ConvexReactClient;
-  app: ConvexReactClient;
+  // The app's own client. In tutorial mode its sandbox keeps every write in
+  // the browser (../sandbox); otherwise it is a plain ConvexReactClient.
+  app: SandboxConvexClient;
+  // The slug the app is registered under in Admin → Apps.
+  appSlug: string;
   // The Grove deployment URL the session lives on, so the dev sign-in form
   // can say which Grove it is talking to.
   groveUrl: string;
@@ -112,7 +117,7 @@ export function GroveProvider({
   const clients = useMemo(
     () => ({
       grove: new ConvexReactClient(groveUrl, CLIENT_OPTIONS),
-      app: new ConvexReactClient(appUrl, CLIENT_OPTIONS),
+      app: new SandboxConvexClient(appUrl, CLIENT_OPTIONS),
     }),
     [groveUrl, appUrl],
   );
@@ -123,6 +128,7 @@ export function GroveProvider({
         app={clients.app}
         groveUrl={groveUrl}
         appName={appName}
+        appSlug={appSlug}
         signInPath={signInPath}
       >
         <GroveReport app={appSlug} version={version}>
@@ -141,13 +147,15 @@ function GroveAuthCapture({
   app,
   groveUrl,
   appName,
+  appSlug,
   signInPath,
   children,
 }: {
   grove: ConvexReactClient;
-  app: ConvexReactClient;
+  app: SandboxConvexClient;
   groveUrl: string;
   appName: string;
+  appSlug: string;
   signInPath: string;
   children: ReactNode;
 }) {
@@ -193,6 +201,7 @@ function GroveAuthCapture({
       app,
       groveUrl,
       appName,
+      appSlug,
       signInPath,
       isLoading,
       isAuthenticated,
@@ -202,7 +211,7 @@ function GroveAuthCapture({
       tokenRef,
       waitForNewToken,
     }),
-    [grove, app, groveUrl, appName, signInPath, isLoading, isAuthenticated, token, signIn, signOut, waitForNewToken],
+    [grove, app, groveUrl, appName, appSlug, signInPath, isLoading, isAuthenticated, token, signIn, signOut, waitForNewToken],
   );
 
   return (
