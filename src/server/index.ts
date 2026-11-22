@@ -27,6 +27,7 @@ export {
   LEADERSHIP_GROUP,
   matchSubteamValue,
   OUTREACH_LEADS_GROUP,
+  CLEAN_LEADS_GROUP,
   PRIMARY_SUBTEAMS,
   ROLE_GROUPS,
   type SubteamMatch,

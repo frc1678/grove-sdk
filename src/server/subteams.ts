@@ -20,6 +20,7 @@ export const PRIMARY_SUBTEAMS = [
 export const ADDITIONAL_GROUPS = [
   "Leadership",
   "Outreach Leads",
+  "Clean Leads",
   "Impact",
   "Strategy",
   "Safety",
@@ -29,6 +30,9 @@ export const ADDITIONAL_GROUPS = [
 // hasManagerAccess() in lib/access.ts. Named here so nothing hardcodes it.
 export const LEADERSHIP_GROUP = "Leadership";
 export const OUTREACH_LEADS_GROUP = "Outreach Leads";
+// The students who lead Clean 15 teams; Harvest spreads them one or two to
+// a team when it shuffles the teams.
+export const CLEAN_LEADS_GROUP = "Clean Leads";
 
 // Groups derived from a person's roster role rather than assigned. Coaches
 // are a role already, so apps address them without a duplicate checkbox.
@@ -67,6 +71,9 @@ export function matchSubteamValue(cell: string): SubteamMatch | null {
     return { kind: "additional", name: "Safety" };
   if (value.includes("outreach"))
     return { kind: "additional", name: "Outreach Leads" };
+  // Before Leadership, which "clean leads" would otherwise match.
+  if (value.includes("clean"))
+    return { kind: "additional", name: "Clean Leads" };
   if (/\blead(er|ership)?s?\b/.test(value))
     return { kind: "additional", name: "Leadership" };
   if (/\bfront/.test(value))
