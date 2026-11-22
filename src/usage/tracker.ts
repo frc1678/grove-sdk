@@ -180,5 +180,14 @@ export function activeTracker(): UsageTracker | null {
 // the person or the record: nothing else is sent with it. A no-op until
 // someone is signed in.
 export function trackGroveEvent(name: string): void {
+  // Not in tutorial mode: a practice RSVP is not an RSVP, and counting it
+  // would inflate the very numbers that say how the app is used. Page views
+  // still count; someone practising is using the app.
+  if (
+    typeof document !== "undefined" &&
+    document.documentElement.classList.contains("grove-tutorial-mode")
+  ) {
+    return;
+  }
   active?.track(name);
 }

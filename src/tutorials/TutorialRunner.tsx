@@ -66,6 +66,8 @@ const TICK_MS = 650;
 // A blocked write only earns a notice if the person just did something:
 // apps also write on timers (presence, autosave), and those are not news.
 const GESTURE_MS = 2500;
+// How long a ?tutorial=<id> link waits for the app to offer that tutorial.
+const LINK_WAIT_MS = 4000;
 
 const MODE_CLASS = "grove-tutorial-mode";
 const STYLE_ID = "grove-tutorial-style";
@@ -208,12 +210,23 @@ export function TutorialRunner({
   // A link from the Grove's Tutorials page: /<slug>/?tutorial=<id> starts
   // that one, and ?tutorial alone opens the list.
   const linked = useRef(false);
+  // An app may hand over a longer list a moment later, once it knows what
+  // this person may do. So a link to a tutorial that is not offered yet
+  // waits for it, and only settles for the list after LINK_WAIT_MS.
+  const [linkWaited, setLinkWaited] = useState(false);
   useEffect(() => {
-    if (linked.current || offered.length === 0) return;
+    const timer = window.setTimeout(() => setLinkWaited(true), LINK_WAIT_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    if (linked.current) return;
     const url = new URL(window.location.href);
     if (!url.searchParams.has("tutorial")) return;
+    const id = url.searchParams.get("tutorial");
+    const wanted = offered.find((tutorial) => tutorial.id === id);
+    if (wanted === undefined && !linkWaited && id !== "") return;
+    if (wanted === undefined && offered.length === 0) return;
     linked.current = true;
-    const wanted = offered.find((tutorial) => tutorial.id === url.searchParams.get("tutorial"));
     url.searchParams.delete("tutorial");
     window.history.replaceState(window.history.state, "", url);
     // And through the router, which keeps its own copy of the location: a
@@ -222,7 +235,7 @@ export function TutorialRunner({
     here.current.navigate(`${here.current.pathname}${url.search}${url.hash}`);
     if (wanted !== undefined) start(wanted);
     else setListOpen(true);
-  }, [offered, start]);
+  }, [offered, start, linkWaited]);
 
   // ——— The frame ———
 

@@ -388,7 +388,8 @@ calls `useOpenTutorials()` (null until there is something to offer) and
 the runner with no Grove wiring, for a tree that has no `GroveProvider`.
 
 A link `/<slug>/?tutorial=<id>` starts that tutorial; `?tutorial` alone opens
-the list. The Grove's Tutorials page uses it.
+the list. If the app filters its list by a capability that loads late, the link waits a few
+seconds for the tutorial to be offered before settling for the list. The Grove's Tutorials page uses it.
 
 ## The version badge
 
