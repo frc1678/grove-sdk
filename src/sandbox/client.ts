@@ -1,5 +1,5 @@
 import { ConvexReactClient, type ConvexReactClientOptions, type Watch } from "convex/react";
-import { getFunctionName, type FunctionReference } from "convex/server";
+import { getFunctionName, makeFunctionReference, type FunctionReference } from "convex/server";
 import { Sandbox, type SandboxOptions } from "./sandbox";
 
 // How long a practised write takes to "save". Long enough that a button's
@@ -20,6 +20,19 @@ export class SandboxConvexClient extends ConvexReactClient {
   constructor(address: string, options?: ConvexReactClientOptions, sandbox?: SandboxOptions) {
     super(address, options);
     this.sandbox = new Sandbox(sandbox);
+    // box.read: the result the client already holds for a query the page is
+    // watching. Reading does not subscribe, so an unwatched query is
+    // undefined rather than fetched.
+    this.sandbox.reader = (name, args) => {
+      try {
+        return (super.watchQuery as (...all: unknown[]) => Watch<unknown>)(
+          makeFunctionReference<"query">(name),
+          args,
+        ).localQueryResult();
+      } catch {
+        return undefined;
+      }
+    };
   }
 
   override watchQuery<Query extends FunctionReference<"query">>(

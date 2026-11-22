@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { TutorialRole } from "../build/tutorialCatalog";
-import { functionName, type Sandbox } from "../sandbox";
+import { functionName, PRACTICE_PREFIX, type Sandbox } from "../sandbox";
 import {
   findTarget,
   routePath,
@@ -169,7 +169,11 @@ export function TutorialRunner({
 
   const exit = useCallback(() => {
     // A page showing a practice document has nothing left to show.
-    const leave = sandbox.madePracticeDocs;
+    // (Only then: a tutorial that made a practice document but stayed on
+    // the list has no reason to be moved.)
+    const leave =
+      sandbox.madePracticeDocs &&
+      decodeURIComponent(window.location.pathname + window.location.search).includes(PRACTICE_PREFIX);
     const home = run?.tutorial.steps.find((item) => item.route !== undefined)?.route ?? "/";
     setRun(null);
     if (leave) here.current.navigate(home);

@@ -58,6 +58,11 @@ export type SandboxTools = {
   // `_creationTime` of now, as a real insert would have given it.
   doc: <T extends Doc>(label: string, fields: T) => T & { _id: any; _creationTime: number };
   now: () => number;
+  // What a query shows right now (the server's result with the practice
+  // layer over it), for an effect that needs a name or a count the page
+  // already has. Undefined when nothing on the page is watching that query
+  // with those arguments.
+  read: <T = any>(query: FunctionName, args?: Record<string, unknown>) => T | undefined;
   // Change what a query shows, for every set of arguments it is watched
   // with. `change` gets the server's result (never undefined) and the
   // arguments; return the result unchanged where it does not apply.
@@ -115,6 +120,9 @@ function mapList(result: unknown, change: (list: unknown[]) => unknown[]): unkno
 }
 
 export type SandboxOptions = {
+  // Reads the server's current result for a watched query. The client
+  // supplies it; without one `box.read` finds nothing.
+  reader?: (name: string, args: Record<string, unknown>) => unknown;
   // Functions that are never sandboxed: sign-in, usage counts, recording a
   // finished tutorial. Given the "module:function" name.
   passthrough?: (name: string) => boolean;
@@ -135,9 +143,12 @@ export class Sandbox {
   private readonly listeners = new Set<() => void>();
   private readonly eventListeners = new Set<(event: SandboxEvent) => void>();
   private readonly passthrough: (name: string) => boolean;
+  // Set by the client that owns this sandbox.
+  reader: (name: string, args: Record<string, unknown>) => unknown;
 
   constructor(options: SandboxOptions = {}) {
     this.passthrough = options.passthrough ?? (() => false);
+    this.reader = options.reader ?? (() => undefined);
   }
 
   get active(): boolean {
@@ -286,6 +297,14 @@ export class Sandbox {
       id,
       me: this.me,
       now: () => Date.now(),
+      read: (query, args = {}) => {
+        const name = functionName(query);
+        try {
+          return this.view(name, args, () => this.reader(name, args)) as never;
+        } catch {
+          return undefined;
+        }
+      },
       doc: (label, fields) => ({ ...fields, _id: id(label), _creationTime: Date.now() }),
       edit,
       answer: (query, respond) => {

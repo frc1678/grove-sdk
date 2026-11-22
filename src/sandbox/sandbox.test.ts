@@ -124,6 +124,20 @@ describe("Sandbox", () => {
     expect(sandbox.write("mutation", "tasks:remove", { id: "a" })).toEqual({ handled: false });
   });
 
+  test("an effect can read what a watched query shows, layer included", () => {
+    const sandbox = new Sandbox({ reader: (name) => (name === "tasks:list" ? tasks : undefined) });
+    let seen: unknown;
+    sandbox.enter({
+      effects: [
+        { name: "tasks:remove", run: (args, box) => box.remove("tasks:list", args.id) },
+        { name: "tasks:count", run: (_args, box) => void (seen = box.read("tasks:list")) },
+      ],
+    });
+    sandbox.write("mutation", "tasks:remove", { id: "a" });
+    sandbox.write("mutation", "tasks:count", {});
+    expect(seen).toEqual([tasks[1]]);
+  });
+
   test("an edit that throws leaves the real result on screen", () => {
     const sandbox = new Sandbox();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
