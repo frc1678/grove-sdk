@@ -47,11 +47,16 @@ type Respond = (args: any) => unknown;
 
 // What an effect is given to describe a practice change.
 export type SandboxTools = {
-  // A fresh practice id: tools.id("task") → "practice-task-3".
-  id: (label?: string) => string;
+  // A fresh practice id: tools.id("task") → "practice-task-3". Typed loosely
+  // on purpose: it stands in for an Id<"tasks">, so an effect can return it
+  // where the real mutation returns one.
+  id: (label?: string) => any;
+  // Who is practising, for a document that shows its author. Empty until
+  // the app knows.
+  me: { name?: string; userId?: string };
   // A practice document: the fields, plus a practice `_id` and a
   // `_creationTime` of now, as a real insert would have given it.
-  doc: <T extends Doc>(label: string, fields: T) => T & { _id: string; _creationTime: number };
+  doc: <T extends Doc>(label: string, fields: T) => T & { _id: any; _creationTime: number };
   now: () => number;
   // Change what a query shows, for every set of arguments it is watched
   // with. `change` gets the server's result (never undefined) and the
@@ -126,6 +131,7 @@ export class Sandbox {
   private allowed = new Set<string>();
   private counter = 0;
   private mintedIds = false;
+  private me: SandboxTools["me"] = {};
   private readonly listeners = new Set<() => void>();
   private readonly eventListeners = new Set<(event: SandboxEvent) => void>();
   private readonly passthrough: (name: string) => boolean;
@@ -157,10 +163,12 @@ export class Sandbox {
       effects?: readonly SandboxEffect[];
       allow?: readonly FunctionName[];
       setup?: (tools: SandboxTools) => void;
+      me?: SandboxTools["me"];
     } = {},
   ): void {
     this.reset();
     this.isActive = true;
+    this.me = options.me ?? {};
     for (const effect of options.effects ?? []) this.effects.set(effect.name, effect.run);
     for (const fn of options.allow ?? []) this.allowed.add(functionName(fn));
     options.setup?.(this.tools());
@@ -276,6 +284,7 @@ export class Sandbox {
     };
     return {
       id,
+      me: this.me,
       now: () => Date.now(),
       doc: (label, fields) => ({ ...fields, _id: id(label), _creationTime: Date.now() }),
       edit,

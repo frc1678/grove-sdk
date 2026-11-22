@@ -96,6 +96,7 @@ export function GroveTutorials({ tutorials, pathname, navigate, groveHref = "/" 
       appName={appName}
       tutorials={tutorials}
       role={(me.effectiveRole ?? me.role) as TutorialRole | undefined}
+      me={{ name: me.name, userId: me._id }}
       completed={completed}
       onComplete={onComplete}
       pathname={pathname}

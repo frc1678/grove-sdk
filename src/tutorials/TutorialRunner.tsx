@@ -31,6 +31,8 @@ export type TutorialRunnerProps = {
   tutorials: readonly Tutorial[];
   // The signed-in person's effective role. Tutorials above it are not shown.
   role: TutorialRole | undefined;
+  // The signed-in person, handed to effects as `box.me`.
+  me?: { name?: string; userId?: string };
   // Ids of the tutorials this person has finished. Undefined while unknown.
   completed: ReadonlySet<string> | undefined;
   // Called once each time someone reaches the end of a tutorial.
@@ -80,6 +82,7 @@ export function TutorialRunner({
   appName,
   tutorials,
   role,
+  me,
   completed,
   onComplete,
   pathname,
@@ -104,8 +107,8 @@ export function TutorialRunner({
   const lastGesture = useRef(0);
   // Read by effects that must not restart when the page or the app's
   // navigate changes: an app hands a new navigate on every render.
-  const here = useRef({ pathname, navigate, completed, onComplete });
-  here.current = { pathname, navigate, completed, onComplete };
+  const here = useRef({ pathname, navigate, completed, onComplete, me });
+  here.current = { pathname, navigate, completed, onComplete, me };
   const runRef = useRef(run);
   runRef.current = run;
 
@@ -155,7 +158,12 @@ export function TutorialRunner({
   const runningTutorial = run?.tutorial;
   useEffect(() => {
     if (runningTutorial === undefined) return;
-    sandbox.enter({ effects: runningTutorial.effects, allow: runningTutorial.allow, setup: runningTutorial.setup });
+    sandbox.enter({
+      effects: runningTutorial.effects,
+      allow: runningTutorial.allow,
+      setup: runningTutorial.setup,
+      me: here.current.me,
+    });
     return () => sandbox.exit();
   }, [sandbox, runningTutorial]);
 
