@@ -436,7 +436,7 @@ export function TutorialRunner({
           >
             <span className="min-w-0 flex-1 truncate">
               <span className="font-semibold uppercase tracking-wide">Tutorial mode</span>
-              <span className="max-[359px]:hidden"> · practice only, nothing is saved</span>
+              <span> · nothing is saved</span>
             </span>
             <button
               type="button"
@@ -610,7 +610,7 @@ export function TutorialRunner({
                       onClick={() => setRun({ ...run, phase: "free" })}
                       className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
                     >
-                      Keep practising
+                      Keep practicing
                     </button>
                     {next !== undefined ? (
                       <button
