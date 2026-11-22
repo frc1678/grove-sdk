@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { Sandbox } from "../sandbox";
 import { TutorialRunner } from "./TutorialRunner";
@@ -27,8 +28,11 @@ const navigate = vi.fn();
 const onComplete = vi.fn();
 
 function mount(sandbox: Sandbox, completed = new Set<string>(), role: "student" | "lead" = "student") {
+  // StrictMode, as every app runs in development: it runs each effect's
+  // cleanup once on mount, which is how a sandbox once closed itself under
+  // a frame that said nothing was being saved.
   return render(
-    <>
+    <StrictMode>
       <button data-tour="new">New</button>
       <TutorialRunner
         sandbox={sandbox}
@@ -44,7 +48,7 @@ function mount(sandbox: Sandbox, completed = new Set<string>(), role: "student" 
           badge = count;
         }}
       />
-    </>,
+    </StrictMode>,
   );
 }
 
@@ -130,11 +134,24 @@ describe("TutorialRunner", () => {
     expect(onComplete).not.toHaveBeenCalled();
   });
 
+  test("the frame is never up over a closed sandbox", () => {
+    const sandbox = new Sandbox();
+    const view = mount(sandbox);
+    act(() => opener?.());
+    fireEvent.click(button("Start"));
+    const framed = () => document.documentElement.classList.contains("grove-tutorial-mode");
+    expect(framed() && sandbox.active).toBe(true);
+    view.unmount();
+    expect(sandbox.active).toBe(false);
+    expect(framed()).toBe(false);
+  });
+
   test("a finished tutorial earns nothing twice, and ?tutorial= starts one", () => {
     window.history.replaceState(null, "", "/?tutorial=add&keep=1");
     const sandbox = new Sandbox();
     mount(sandbox, new Set(["add"]));
     expect(sandbox.active).toBe(true);
+    expect(document.documentElement.classList.contains("grove-tutorial-mode")).toBe(true);
     expect(window.location.search).toBe("?keep=1");
     fireEvent.click(button("Start"));
     fireEvent.click(button("Skip this step"));

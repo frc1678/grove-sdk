@@ -129,8 +129,14 @@ export function GroveTutorial({
     setTouring(false);
   }, [record, version]);
 
+  // A link straight into a hands-on tutorial (?tutorial=…, from the Grove's
+  // Tutorials page) is what this visit is for: the first-run tour would open
+  // on top of it. Read once, before GroveTutorials strips the parameter.
+  const [linkedToTutorial] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("tutorial"),
+  );
   useEffect(() => {
-    if (offered.current) return;
+    if (offered.current || linkedToTutorial) return;
     const opening = autoOpening({
       seenVersion: seen,
       version,
@@ -147,7 +153,7 @@ export function GroveTutorial({
     setEntries(unseenChanges(changelog, seen ?? 0, version));
     setMode("changelog");
     setOpen(true);
-  }, [seen, version, me?.status, slides.length, tour.length, changelog, show]);
+  }, [seen, version, me?.status, slides.length, tour.length, changelog, show, linkedToTutorial]);
 
   // Lend the header a way back in, but only while there is something to
   // show. Registering null on unmount takes the button away with it.

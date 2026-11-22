@@ -136,26 +136,36 @@ export function TutorialRunner({
   const start = useCallback(
     (tutorial: Tutorial) => {
       setListOpen(false);
-      sandbox.enter({ effects: tutorial.effects, allow: tutorial.allow, setup: tutorial.setup });
       setTicked(false);
       setNotice(false);
       setHidden(false);
       setRun({ tutorial, index: 0, phase: "intro", first: false });
     },
-    [sandbox],
+    [],
   );
+
+  // The sandbox is open exactly while a tutorial is running, and that is
+  // decided here and nowhere else. The amber frame is drawn from `run`, so
+  // if anything else could close the sandbox the frame would promise
+  // "nothing is saved" over a page that saves. (React's StrictMode found
+  // this: it runs every effect's cleanup once on mount, which closed a
+  // sandbox that a ?tutorial= link had just opened.) The intro card stands
+  // between starting and the first step, so the sandbox is open before
+  // anyone can act.
+  const runningTutorial = run?.tutorial;
+  useEffect(() => {
+    if (runningTutorial === undefined) return;
+    sandbox.enter({ effects: runningTutorial.effects, allow: runningTutorial.allow, setup: runningTutorial.setup });
+    return () => sandbox.exit();
+  }, [sandbox, runningTutorial]);
 
   const exit = useCallback(() => {
     // A page showing a practice document has nothing left to show.
     const leave = sandbox.madePracticeDocs;
     const home = run?.tutorial.steps.find((item) => item.route !== undefined)?.route ?? "/";
-    sandbox.exit();
     setRun(null);
     if (leave) here.current.navigate(home);
   }, [sandbox, run]);
-
-  // Leaving the page by any other road closes the sandbox too.
-  useEffect(() => () => sandbox.exit(), [sandbox]);
 
   const finish = useCallback((current: Run) => {
     const first = here.current.completed?.has(current.tutorial.id) !== true;
