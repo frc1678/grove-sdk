@@ -216,6 +216,10 @@ export function TutorialRunner({
     const wanted = offered.find((tutorial) => tutorial.id === url.searchParams.get("tutorial"));
     url.searchParams.delete("tutorial");
     window.history.replaceState(window.history.state, "", url);
+    // And through the router, which keeps its own copy of the location: a
+    // page that writes search params would otherwise put ?tutorial back,
+    // and an app that remembers a view would remember it.
+    here.current.navigate(`${here.current.pathname}${url.search}${url.hash}`);
     if (wanted !== undefined) start(wanted);
     else setListOpen(true);
   }, [offered, start]);
