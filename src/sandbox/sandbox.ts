@@ -47,6 +47,11 @@ type Respond = (args: any) => unknown;
 
 // What an effect is given to describe a practice change.
 export type SandboxTools = {
+  // Refuse the write the way the real function would ("A sponsor with that
+  // name already exists"): the call rejects with this message as a
+  // ConvexError, the app's own error handling shows it, and nothing this
+  // effect changed is kept. Returns never; use `return box.refuse(…)`.
+  refuse: (message: string) => never;
   // A fresh practice id: tools.id("task") → "practice-task-3". Typed loosely
   // on purpose: it stands in for an Id<"tasks">, so an effect can return it
   // where the real mutation returns one.
@@ -91,6 +96,14 @@ export type SandboxTools = {
 };
 
 // What one practised write does. Build with `practice(api.tasks.create, …)`.
+// Thrown by box.refuse; the client turns it into the rejected call.
+export class PracticeRefusal extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PracticeRefusal";
+  }
+}
+
 export type SandboxEffect = {
   name: string;
   // Returns what the real mutation would have returned (an id, usually).
@@ -101,7 +114,8 @@ export type SandboxEvent = {
   // "practiced": a write the tutorial has an effect for.
   // "blocked": any other write. It was dropped.
   // "allowed": a function the tutorial lets through (`allow`). It was sent.
-  kind: "practiced" | "blocked" | "allowed";
+  // "refused": practised, but the effect refused it as the server would.
+  kind: "practiced" | "blocked" | "allowed" | "refused";
   write: "mutation" | "action";
   name: string;
   args: unknown;
@@ -280,9 +294,12 @@ export class Sandbox {
   // by the client straight after the call (it is synchronous), so the result
   // keeps its long-standing shape.
   lastWriteBlocked = false;
+  // Set when the most recent write's effect called box.refuse.
+  lastWriteRefusal: PracticeRefusal | null = null;
 
   write(kind: "mutation" | "action", name: string, args: unknown): SandboxWrite {
     this.lastWriteBlocked = false;
+    this.lastWriteRefusal = null;
     if (!this.isActive || this.passthrough(name)) return { handled: false };
     if (this.allowed.has(name)) {
       // Sent for real, but a step may still wait on it (`until: { did }`).
@@ -296,9 +313,18 @@ export class Sandbox {
       return { handled: true, value: null };
     }
     let value: unknown = null;
+    const kept = { edits: this.edits.length, answers: this.answers.length };
     try {
       value = effect(args, this.tools()) ?? null;
     } catch (error) {
+      if (error instanceof PracticeRefusal) {
+        // Nothing a refused write changed is kept.
+        this.edits.length = kept.edits;
+        this.answers.length = kept.answers;
+        this.lastWriteRefusal = error;
+        this.emit({ kind: "refused", write: kind, name, args });
+        return { handled: true, value: null };
+      }
       console.warn(`[grove] tutorial effect for ${name} failed`, error);
     }
     this.changed();
@@ -329,6 +355,9 @@ export class Sandbox {
     return {
       id,
       me: this.me,
+      refuse: (message: string) => {
+        throw new PracticeRefusal(message);
+      },
       now: () => Date.now(),
       read: (query, args = {}) => readOne(functionName(query), args) as never,
       readAll: (query) => {

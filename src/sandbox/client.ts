@@ -1,5 +1,6 @@
 import { ConvexReactClient, type ConvexReactClientOptions, type Watch } from "convex/react";
 import { getFunctionName, makeFunctionReference, type FunctionReference } from "convex/server";
+import { ConvexError } from "convex/values";
 import { Sandbox, type SandboxOptions } from "./sandbox";
 
 // How long a practised write takes to "save". Long enough that a button's
@@ -146,6 +147,10 @@ export class SandboxConvexClient extends ConvexReactClient {
     if (!this.sandbox.active) return null;
     const result = this.sandbox.write(kind, getFunctionName(fn), args ?? {});
     if (!result.handled) return null;
+    const refusal = this.sandbox.lastWriteRefusal;
+    if (refusal !== null) {
+      return new Promise((_, reject) => setTimeout(() => reject(new ConvexError(refusal.message)), PRACTICE_DELAY_MS));
+    }
     if (this.sandbox.lastWriteBlocked) {
       return new Promise((_, reject) => setTimeout(() => reject(new TutorialModeError()), PRACTICE_DELAY_MS));
     }

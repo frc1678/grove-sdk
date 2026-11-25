@@ -6,6 +6,7 @@ export {
   functionName,
   mentionsPractice,
   PRACTICE_PREFIX,
+  PracticeRefusal,
   Sandbox,
   type FunctionName,
   type SandboxEffect,

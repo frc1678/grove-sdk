@@ -380,6 +380,7 @@ reference. Return what the real function returns (an id, usually). `box`:
 | `box.read(query, args?)` | what a query the page is watching shows right now, for an effect that needs a name or a count |
 | `box.readAll(query)` | `[{ args, result }]` for every set of arguments the page watches the query with, for when the write does not carry them |
 | `box.find(query, id)` | the document with that `_id` as a watched query shows it now, in a list, a page or as the whole result |
+| `box.refuse(message)` | refuse the write as the real function would: the call rejects with that message as a `ConvexError`, nothing the effect changed is kept, and a step waiting on it does not move on. `return box.refuse("A sponsor with that name already exists")` |
 | `box.me` | `{ name, userId }` of the person practising, for a document that shows its author |
 | `box.answer(query, (queryArgs) => result \| undefined)` | answer a query in the browser: a practice document's own page, which the server has never heard of |
 

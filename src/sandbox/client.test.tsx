@@ -53,6 +53,28 @@ describe("SandboxConvexClient", () => {
     await convex.close();
   });
 
+  test("an effect can refuse a write the way the server would", async () => {
+    const convex = client();
+    convex.sandbox.enter({
+      effects: [
+        {
+          name: "sponsors:create",
+          run: (args, box) => {
+            box.insert("sponsors:list", { _id: "x", name: args.name });
+            return args.name === "Taken" ? box.refuse("A sponsor with that name already exists") : "practice-1";
+          },
+        },
+      ],
+    });
+    await expect(convex.mutation(anyApi.sponsors.create, { name: "Taken" })).rejects.toMatchObject({
+      data: "A sponsor with that name already exists",
+    });
+    // Nothing the refused effect did is kept.
+    expect(convex.sandbox.view("sponsors:list", {}, () => [])).toEqual([]);
+    await expect(convex.mutation(anyApi.sponsors.create, { name: "New" })).resolves.toBe("practice-1");
+    void convex.close();
+  });
+
   test("out of tutorial mode a mutation is sent as usual", async () => {
     const convex = client();
     void convex.mutation(anyApi.tasks.create, { title: "x" });

@@ -438,6 +438,8 @@ export function TutorialRunner({
       until !== undefined && "did" in until
         ? sandbox.onEvent((event) => {
             if (event.name !== functionName(until.did)) return;
+            // A write the effect refused, as the server would, did not happen.
+            if (event.kind === "refused") return;
             if (until.when !== undefined && !until.when(event.args)) return;
             pass();
           })
