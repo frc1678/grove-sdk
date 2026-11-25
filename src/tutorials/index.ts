@@ -1,4 +1,9 @@
-export { GroveTutorials, useTutorialProgress, type GroveTutorialsProps } from "./GroveTutorials";
+export {
+  GroveTutorials,
+  useTutorialMode,
+  useTutorialProgress,
+  type GroveTutorialsProps,
+} from "./GroveTutorials";
 export { TutorialRunner, type TutorialRunnerProps } from "./TutorialRunner";
 export {
   defineTutorials,

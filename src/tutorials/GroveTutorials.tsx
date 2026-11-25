@@ -1,5 +1,5 @@
 import type { ConvexReactClient, Watch } from "convex/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { TutorialRole } from "../build/tutorialCatalog";
 import { groveApi, type TutorialProgress } from "../react/api";
 import { useMe } from "../react/guards";
@@ -61,6 +61,19 @@ export function useTutorialProgress(
     return watch.onUpdate(read);
   }, [client, enabled]);
   return progress;
+}
+
+// True while a tutorial is running in this app. Convex writes are held back
+// by the sandbox already; this is for whatever else an app sends: its own
+// fetch to a server outside Convex, a file upload, a link that starts a job.
+// While it is true, hold those back too (say "not in tutorial mode").
+export function useTutorialMode(): boolean {
+  const { app } = useGrove();
+  return useSyncExternalStore(
+    useCallback((onChange: () => void) => app.sandbox.subscribe(onChange), [app]),
+    () => app.sandbox.active,
+    () => false,
+  );
 }
 
 export function GroveTutorials({ tutorials, pathname, navigate, groveHref = "/" }: GroveTutorialsProps) {

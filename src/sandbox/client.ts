@@ -16,10 +16,14 @@ const PRACTICE_DELAY_MS = 120;
 // covers every hook in every app with no change to the app.
 export class SandboxConvexClient extends ConvexReactClient {
   readonly sandbox: Sandbox;
+  // What the page is watching, by function name then by arguments, so an
+  // effect can read a query without knowing its arguments (box.readAll).
+  private readonly watched = new Map<string, Map<string, { args: Record<string, unknown>; count: number }>>();
 
   constructor(address: string, options?: ConvexReactClientOptions, sandbox?: SandboxOptions) {
     super(address, options);
     this.sandbox = new Sandbox(sandbox);
+    this.sandbox.watching = (name) => [...(this.watched.get(name)?.values() ?? [])].map((entry) => entry.args);
     // box.read: the result the client already holds for a query the page is
     // watching. Reading does not subscribe, so an unwatched query is
     // undefined rather than fetched.
@@ -54,12 +58,14 @@ export class SandboxConvexClient extends ConvexReactClient {
     return {
       ...base,
       onUpdate: (callback: () => void) => {
+        const offWatched = this.track(name, args as Record<string, unknown>);
         const offLayer = sandbox.subscribe(callback);
         // A query about a practice document is never sent. The server
         // would refuse the id, and the refusal would reach the page as an
         // error.
         const offServer = sandbox.isLocal(args) ? () => {} : base.onUpdate(callback);
         return () => {
+          offWatched();
           offLayer();
           offServer();
         };
@@ -79,6 +85,19 @@ export class SandboxConvexClient extends ConvexReactClient {
         memo = { base: server, version: sandbox.version, local, view };
         return view as Query["_returnType"];
       },
+    };
+  }
+
+  private track(name: string, args: Record<string, unknown>): () => void {
+    const key = JSON.stringify(args);
+    const byArgs = this.watched.get(name) ?? new Map();
+    this.watched.set(name, byArgs);
+    const entry = byArgs.get(key) ?? { args, count: 0 };
+    entry.count += 1;
+    byArgs.set(key, entry);
+    return () => {
+      entry.count -= 1;
+      if (entry.count <= 0) byArgs.delete(key);
     };
   }
 

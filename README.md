@@ -359,6 +359,8 @@ reference. Return what the real function returns (an id, usually). `box`:
 | `box.doc("task", fields)` | a practice document: the fields plus a practice `_id` and `_creationTime` |
 | `box.id("task")` | a practice id, `"practice-task-3"` (typed loosely, so it can be returned where the real mutation returns an `Id`) |
 | `box.read(query, args?)` | what a query the page is watching shows right now, for an effect that needs a name or a count |
+| `box.readAll(query)` | `[{ args, result }]` for every set of arguments the page watches the query with, for when the write does not carry them |
+| `box.find(query, id)` | the document with that `_id` as a watched query shows it now, in a list, a page or as the whole result |
 | `box.me` | `{ name, userId }` of the person practising, for a document that shows its author |
 | `box.answer(query, (queryArgs) => result \| undefined)` | answer a query in the browser: a practice document's own page, which the server has never heard of |
 
@@ -379,6 +381,18 @@ Rules that keep a tutorial honest:
 - `allow: [api.x.lookup]` lets an action that only reads really run.
 - Timers that write (presence, autosave) are dropped silently; only a write
   right after a tap or keypress shows the "not saved" note.
+
+### Writes outside Convex
+
+The sandbox sees Convex writes only. An app that also sends its own `fetch`
+to a server (a host, a printer bridge), uploads a file, or opens a page that
+starts a job should check `useTutorialMode()` and hold those back while it is
+true. `practice` is also exported from `@frc1678/grove-sdk/sandbox`, so an
+effects file and its tests need not load React.
+
+A step whose `until` is a state (`see`, `gone`, `at`, `value`) that already
+holds stays up for a moment first, so it can be read. A step `route` with a
+query string (`/queue?lane=grade`) navigates until the query matches too.
 
 ### Apps with their own header
 

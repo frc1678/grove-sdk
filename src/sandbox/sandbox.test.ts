@@ -138,6 +138,30 @@ describe("Sandbox", () => {
     expect(seen).toEqual([tasks[1]]);
   });
 
+  test("an effect can find a document across every watched set of arguments", () => {
+    const pages: Record<string, typeof tasks> = { '{"now":1}': tasks, '{"now":2}': [] };
+    const sandbox = new Sandbox({
+      reader: (_name, args) => pages[JSON.stringify(args)],
+      watching: (name) => (name === "tasks:list" ? [{ now: 2 }, { now: 1 }] : []),
+    });
+    let found: unknown;
+    let all: unknown;
+    sandbox.enter({
+      effects: [
+        {
+          name: "tasks:look",
+          run: (_args, box) => {
+            found = box.find("tasks:list", "b");
+            all = box.readAll("tasks:list").map((entry) => entry.args);
+          },
+        },
+      ],
+    });
+    sandbox.write("mutation", "tasks:look", {});
+    expect(found).toEqual(tasks[1]);
+    expect(all).toEqual([{ now: 2 }, { now: 1 }]);
+  });
+
   test("an edit that throws leaves the real result on screen", () => {
     const sandbox = new Sandbox();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

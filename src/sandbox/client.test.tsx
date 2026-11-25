@@ -70,6 +70,9 @@ describe("SandboxConvexClient", () => {
     const off = watch.onUpdate(() => {
       updates += 1;
     });
+    // box.readAll and box.find see what the page watches, and stop seeing it
+    // once the page lets go.
+    expect(convex.sandbox.watching("tasks:get")).toEqual([{ id: "practice-task-1" }]);
     const first = watch.localQueryResult();
     expect(first).toEqual({ _id: "practice-task-1", tags: ["a"] });
     convex.sandbox.enter({
@@ -84,6 +87,7 @@ describe("SandboxConvexClient", () => {
     // An edit builds a new object each time it runs; the watch must not.
     expect(watch.localQueryResult()).toBe(second);
     off();
+    expect(convex.sandbox.watching("tasks:get")).toEqual([]);
     await settle();
     // A practice document's query was never subscribed to on the server.
     expect(sent.filter((message) => message.includes("practice-task-1"))).toEqual([]);

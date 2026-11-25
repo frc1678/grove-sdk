@@ -68,6 +68,9 @@ const TICK_MS = 650;
 const GESTURE_MS = 2500;
 // How long a ?tutorial=<id> link waits for the app to offer that tutorial.
 const LINK_WAIT_MS = 4000;
+// The least time a step is on screen before a condition that already
+// holds moves it on. A tap or a write moves it on at once.
+const READ_MS = 1500;
 
 const MODE_CLASS = "grove-tutorial-mode";
 const STYLE_ID = "grove-tutorial-style";
@@ -317,7 +320,13 @@ export function TutorialRunner({
     elementRef.current = null;
     setBox(null);
     const { pathname: path, navigate: go } = here.current;
-    if (step.route !== undefined && routePath(step.route) !== path) go(step.route);
+    // A route with a query ("/queue?lane=grade") is a different view of the
+    // same page, so it counts as elsewhere until the query matches too.
+    if (step.route !== undefined) {
+      const here = step.route.includes("?") ? `${path}${window.location.search}` : path;
+      if ((step.route.includes("?") ? step.route : routePath(step.route)) !== here) go(step.route);
+    }
+    const opened = Date.now();
     let met = false;
     let scrolled = false;
     let topLayer = 0;
@@ -352,7 +361,9 @@ export function TutorialRunner({
       }
       const until = step.until;
       if (until !== undefined && !("did" in until) && !("click" in until)) {
-        if (untilMet(until, here.current.pathname, document)) pass();
+        // A state that already holds when the step opens (a dialog still up
+        // from the last one) would move on before anyone read the step.
+        if (Date.now() - opened >= READ_MS && untilMet(until, here.current.pathname, document)) pass();
       }
     };
     // Not on the first tick for a state the page may already be in from the

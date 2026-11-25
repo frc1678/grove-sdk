@@ -78,6 +78,7 @@ export {
   practice,
   TutorialRunner,
   tutorialsFor,
+  useTutorialMode,
   useTutorialProgress,
   type GroveTutorialsProps,
   type Tutorial,

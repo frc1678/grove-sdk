@@ -1,7 +1,6 @@
-import type { FunctionArgs, FunctionReference, FunctionReturnType } from "convex/server";
 import type { ReactNode } from "react";
 import type { TutorialCatalogEntry, TutorialRole } from "../build/tutorialCatalog";
-import { functionName, type FunctionName, type SandboxEffect, type SandboxTools } from "../sandbox";
+import type { FunctionName, SandboxEffect, SandboxTools } from "../sandbox/sandbox";
 
 // A hands-on tutorial: a short task done in the real app, in tutorial mode,
 // where nothing is saved (../sandbox/sandbox.ts).
@@ -69,19 +68,7 @@ export function defineTutorials<const C extends readonly TutorialCatalogEntry[]>
   });
 }
 
-// One practised write:
-//
-//   practice(api.tasks.create, (args, box) => {
-//     const task = box.doc("task", { title: args.title, done: false });
-//     box.insert(api.tasks.list, task);
-//     return task._id;
-//   })
-export function practice<Fn extends FunctionReference<"mutation" | "action">>(
-  fn: Fn,
-  run: (args: FunctionArgs<Fn>, tools: SandboxTools) => FunctionReturnType<Fn> | void,
-): SandboxEffect {
-  return { name: functionName(fn), run };
-}
+export { practice } from "../sandbox/practice";
 
 const ORDER: Record<TutorialRole, number> = { student: 0, lead: 1, coach: 2, admin: 3 };
 

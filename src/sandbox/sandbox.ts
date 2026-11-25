@@ -63,6 +63,13 @@ export type SandboxTools = {
   // already has. Undefined when nothing on the page is watching that query
   // with those arguments.
   read: <T = any>(query: FunctionName, args?: Record<string, unknown>) => T | undefined;
+  // The same, for every set of arguments the page is watching the query
+  // with: for an effect that knows the document but not the arguments
+  // (a page's clock, an event id the write does not carry).
+  readAll: <T = any>(query: FunctionName) => Array<{ args: Record<string, unknown>; result: T }>;
+  // The document with this `_id` (or `id`) as a query the page is watching
+  // shows it now: in a list, a page, or as the whole result.
+  find: <T = any>(query: FunctionName, id: string) => T | undefined;
   // Change what a query shows, for every set of arguments it is watched
   // with. `change` gets the server's result (never undefined) and the
   // arguments; return the result unchanged where it does not apply.
@@ -123,6 +130,8 @@ export type SandboxOptions = {
   // Reads the server's current result for a watched query. The client
   // supplies it; without one `box.read` finds nothing.
   reader?: (name: string, args: Record<string, unknown>) => unknown;
+  // Every set of arguments a query is being watched with right now.
+  watching?: (name: string) => Record<string, unknown>[];
   // Functions that are never sandboxed: sign-in, usage counts, recording a
   // finished tutorial. Given the "module:function" name.
   passthrough?: (name: string) => boolean;
@@ -145,10 +154,12 @@ export class Sandbox {
   private readonly passthrough: (name: string) => boolean;
   // Set by the client that owns this sandbox.
   reader: (name: string, args: Record<string, unknown>) => unknown;
+  watching: (name: string) => Record<string, unknown>[];
 
   constructor(options: SandboxOptions = {}) {
     this.passthrough = options.passthrough ?? (() => false);
     this.reader = options.reader ?? (() => undefined);
+    this.watching = options.watching ?? (() => []);
   }
 
   get active(): boolean {
@@ -290,6 +301,13 @@ export class Sandbox {
       this.mintedIds = true;
       return `${PRACTICE_PREFIX}${label}-${this.counter}`;
     };
+    const readOne = (name: string, args: Record<string, unknown>): unknown => {
+      try {
+        return this.view(name, args, () => this.reader(name, args));
+      } catch {
+        return undefined;
+      }
+    };
     const edit = (query: FunctionName, change: Change) => {
       this.edits.push({ name: functionName(query), change });
     };
@@ -297,13 +315,26 @@ export class Sandbox {
       id,
       me: this.me,
       now: () => Date.now(),
-      read: (query, args = {}) => {
+      read: (query, args = {}) => readOne(functionName(query), args) as never,
+      readAll: (query) => {
         const name = functionName(query);
-        try {
-          return this.view(name, args, () => this.reader(name, args)) as never;
-        } catch {
-          return undefined;
+        return this.watching(name)
+          .map((args) => ({ args, result: readOne(name, args) as never }))
+          .filter((entry) => entry.result !== undefined);
+      },
+      find: (query, target) => {
+        const name = functionName(query);
+        for (const args of this.watching(name)) {
+          const result = readOne(name, args);
+          if (idOf(result) === target) return result as never;
+          let found: unknown;
+          mapList(result, (list) => {
+            found ??= list.find((doc) => idOf(doc) === target);
+            return list;
+          });
+          if (found !== undefined) return found as never;
         }
+        return undefined;
       },
       doc: (label, fields) => ({ ...fields, _id: id(label), _creationTime: Date.now() }),
       edit,
