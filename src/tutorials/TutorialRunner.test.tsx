@@ -160,6 +160,48 @@ describe("TutorialRunner", () => {
     expect(untilMet({ at: "/runs" }, "/runs", document, "?anything")).toBe(true);
   });
 
+  test("a step is not passed on the page the person started from", () => {
+    // Started on /request; the step sends them to / and waits for /request.
+    const linked = defineTutorials(
+      [{ id: "req", title: "Request", summary: "s", points: 5 }] as const,
+      { req: { steps: [{ title: "Open the form", body: "b", route: "/", until: { at: "/request" } }, { title: "Two", body: "b" }] } },
+    );
+    let path = "/request";
+    const go = vi.fn((to: string) => {
+      path = to;
+    });
+    const sandbox = new Sandbox();
+    const view = (p: string) => (
+      <TutorialRunner
+        sandbox={sandbox}
+        appName="Tasks"
+        tutorials={linked}
+        role="student"
+        completed={new Set()}
+        onComplete={onComplete}
+        pathname={p}
+        navigate={go}
+        register={(open) => {
+          opener = open;
+        }}
+      />
+    );
+    const { rerender } = render(view(path));
+    act(() => opener?.());
+    fireEvent.click(button("Start"));
+    fireEvent.click(button("Start"));
+    expect(go).toHaveBeenCalledWith("/");
+    // The router has not caught up yet: still /request. It must not pass.
+    tick(2000);
+    expect(screen.getByText("Open the form")).toBeTruthy();
+    rerender(view("/"));
+    tick(2000);
+    expect(screen.getByText("Open the form")).toBeTruthy();
+    rerender(view("/request"));
+    tick(2500);
+    expect(screen.getByText("Two")).toBeTruthy();
+  });
+
   test("points are promised only once the Grove has recorded them", async () => {
     onComplete.mockReturnValue(Promise.resolve(false));
     const sandbox = new Sandbox();

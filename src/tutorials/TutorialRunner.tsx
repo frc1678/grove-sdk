@@ -328,13 +328,20 @@ export function TutorialRunner({
     }
     elementRef.current = null;
     setBox(null);
-    const { pathname: path, navigate: go } = here.current;
+    const { navigate: go } = here.current;
     // A route with a query ("/queue?lane=grade") is a different view of the
     // same page, so it counts as elsewhere until the query matches too.
-    if (step.route !== undefined) {
-      const here = step.route.includes("?") ? `${path}${window.location.search}` : path;
-      if ((step.route.includes("?") ? step.route : routePath(step.route)) !== here) go(step.route);
-    }
+    const onRoute = () => {
+      if (step.route === undefined) return true;
+      const path = here.current.pathname;
+      return step.route.includes("?")
+        ? step.route === `${path}${window.location.search}`
+        : routePath(step.route) === path;
+    };
+    if (!onRoute()) go(step.route as string);
+    // Nothing is checked until the step's own page has loaded: the page the
+    // person was on could already satisfy a condition meant for after it.
+    let arrived = onRoute();
     const opened = Date.now();
     let met = false;
     let scrolled = false;
@@ -372,7 +379,8 @@ export function TutorialRunner({
       if (until !== undefined && !("did" in until) && !("click" in until)) {
         // A state that already holds when the step opens (a dialog still up
         // from the last one) would move on before anyone read the step.
-        if (Date.now() - opened >= READ_MS && untilMet(until, here.current.pathname, document)) pass();
+        if (!arrived) arrived = onRoute();
+        if (arrived && Date.now() - opened >= READ_MS && untilMet(until, here.current.pathname, document)) pass();
       }
     };
     // Not on the first tick for a state the page may already be in from the
