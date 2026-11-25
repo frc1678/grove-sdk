@@ -69,7 +69,33 @@ export { PageHeader, PageTitle, type NavBreakpoint } from "./PageTitle";
 // For apps that draw their own header instead of using GroveShell: wrap
 // the layout in TutorialProvider and drop TutorialButton in the header.
 export { TutorialButton, TutorialProvider } from "./tutorialChrome";
-export { useOpenChangelog, useReopenTutorial } from "./tutorialSlot";
+export { useOpenChangelog, useOpenTutorials, useReopenTutorial, useTutorialsBadge } from "./tutorialSlot";
+// Hands-on tutorials, run in tutorial mode where nothing is saved (see
+// ../tutorials and ../sandbox).
+export {
+  defineTutorials,
+  GroveTutorials,
+  practice,
+  TutorialRunner,
+  tutorialsFor,
+  useTutorialMode,
+  useTutorialProgress,
+  type GroveTutorialsProps,
+  type Tutorial,
+  type TutorialRunnerProps,
+  type TutorialScript,
+  type TutorialStep,
+  type TutorialUntil,
+} from "../tutorials";
+export {
+  PRACTICE_PREFIX,
+  Sandbox,
+  SandboxConvexClient,
+  TutorialModeError,
+  type SandboxEffect,
+  type SandboxEvent,
+  type SandboxTools,
+} from "../sandbox";
 export { GroveTutorial, type GroveTutorialProps } from "./GroveTutorial";
 // The guided tour: steps that walk through the app itself (see GroveTour.tsx
 // for the data-tour names the shell and toolbar carry).
@@ -98,4 +124,5 @@ export {
   type Me,
   type Role,
   type Status,
+  type TutorialProgress,
 } from "./api";

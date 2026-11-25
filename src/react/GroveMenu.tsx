@@ -186,6 +186,7 @@ export function GroveMenuItem({
   active = false,
   dense = false,
   className,
+  tour,
 }: {
   icon?: ReactNode;
   children: ReactNode;
@@ -199,11 +200,14 @@ export function GroveMenuItem({
     onClick: () => void;
     children: ReactNode;
     "aria-current"?: "page";
+    "data-tour"?: string;
   }) => ReactNode;
   active?: boolean;
   // A shorter row, for a long list such as the nav.
   dense?: boolean;
   className?: string;
+  // A name a tutorial step can ring: data-tour="<tour>".
+  tour?: string;
 }) {
   const close = useCloseMenu();
   const classes = [ITEM, dense ? "py-1.5" : "py-2", active ? "bg-accent font-medium text-accent-foreground" : "", className ?? ""]
@@ -227,6 +231,7 @@ export function GroveMenuItem({
       onClick: close,
       children: content,
       ...(active ? { "aria-current": "page" as const } : {}),
+      ...(tour === undefined ? {} : { "data-tour": tour }),
     });
   }
   return (
@@ -234,6 +239,7 @@ export function GroveMenuItem({
       type="button"
       role="menuitem"
       className={classes}
+      data-tour={tour}
       onClick={() => {
         close();
         onSelect?.();

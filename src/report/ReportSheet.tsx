@@ -94,7 +94,14 @@ export function ReportSheet({
       // is normally done by the time the Grove is, and a blocked one costs
       // SENTRY_WAIT_MS at most. A late answer still reaches Sentry; only the
       // link from the Grove's row to it is lost.
-      const sentryEventId = withTimeout(
+      // Not while this client is practising: in the Grove itself the report
+      // goes through the sandboxed client, so the Convex writes below stay in
+      // the browser, and a practice report must not reach Sentry either.
+      const practising =
+        (client as { sandbox?: { active?: boolean } }).sandbox?.active === true;
+      const sentryEventId = (practising
+        ? Promise.resolve(undefined)
+        : withTimeout(
         captureGroveFeedback({
           message,
           app,
@@ -104,7 +111,7 @@ export function ReportSheet({
           contextJson: fullJson,
         }),
         SENTRY_WAIT_MS,
-      ).catch((sentryError: unknown) => {
+      )).catch((sentryError: unknown) => {
         console.warn("[grove] Sentry did not take the report", sentryError);
         return undefined;
       });

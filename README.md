@@ -72,6 +72,7 @@ roster entry id (strings).
 | `GroveAvatar` | A person's photo, or their initials: `<GroveAvatar name={entry.name} src={entry.picture} size="xl" />`. Sizes `xs` 20px (inside a badge), `sm` 24px (table rows), `md` 32px, `lg` 40px, `xl` 56px (face grids). Decorative — keep the name beside it |
 | `PendingScreen`, `Spinner`, `DevSignIn` | House chrome |
 | `GroveTutorial`, `TutorialSlide`, `ChangelogEntry` | The first-run tutorial, the "What's new" note, and the full changelog (below) |
+| `GroveTutorials`, `defineTutorials`, `practice` | Hands-on tutorials run in tutorial mode, where nothing is saved (below) |
 | `ReportProblemButton`, `useReportContext`, `useReportProblem`, `ReportProvider` | Report a problem (below) |
 
 `@frc1678/grove-sdk/groups` exports the group vocabulary for frontends, and
@@ -218,6 +219,223 @@ It must sit behind `RequireSignedIn`: both wrapped functions derive the
 caller from the token and refuse anyone who isn't active. Slides are text,
 icons, and simple diagrams — screenshots go stale the first time the app is
 restyled.
+
+## Tutorials and tutorial mode
+
+Hands-on tutorials: short tasks a person does themselves, in the real app,
+over the real data on screen, with **nothing saved**. They are separate from
+the first-run tour above, which only points at things. An app offers 2–10,
+one per thing people most often come to it to do. The menu grows a
+"Tutorials" item; the Grove lists every app's at `/tutorials`, keeps the
+points, and counts them toward engagement.
+
+### How nothing gets saved
+
+`GroveProvider` gives the app a `SandboxConvexClient`. Outside a tutorial it
+is a plain `ConvexReactClient`. While a tutorial runs, every `useMutation`
+and `useAction` call is stopped before it leaves the browser:
+
+- a write the tutorial **practises** runs its *effect* instead: a function
+  that says what the write would have changed on screen, by editing query
+  results in the browser on top of what the server last sent;
+- any **other** write is dropped and fails with a `TutorialModeError`
+  ("Not saved: you're in tutorial mode…"), so the app's own error toast says
+  so and code that would use the result never runs. The runner also shows
+  a note.
+
+Queries keep running, so the page shows live production data with the
+practice changes layered over it. Exiting throws the layer away. There is no
+fake-data mode and no server code to write: the app's backend is untouched.
+
+Things the sandbox cannot see, and a tutorial must stay away from: a raw
+`fetch` to an HTTP action, a file upload to a storage URL, `window.open`,
+and anything written through the **Grove's** client (Report a problem really
+does file a report). A blocked `generateUploadUrl` fails, so an upload step
+fails harmlessly; do not build a tutorial around one.
+
+### The three files
+
+**`src/tutorial-catalog.ts`** is what the Grove lists. Plain data, no React:
+
+```ts
+import { defineTutorialCatalog } from "@frc1678/grove-sdk/tutorial-catalog"
+
+export default defineTutorialCatalog([
+  { id: "rsvp", title: "RSVP to a meeting", summary: "Tell your lead whether you're coming.", points: 10, minutes: 2 },
+  { id: "take-attendance", title: "Take attendance", summary: "Mark who showed up.", points: 15, minutes: 3, minRole: "lead" },
+])
+```
+
+`id` is permanent (completions are kept by it). `groups` names Grove groups offered a tutorial whatever their
+role (`groups: ["Outreach Leads"]` beside `minRole: "lead"`), for access an
+app grants by group; filter by the app's own capability as well. `points` is 5–50, about five
+a minute. `minRole` hides a tutorial from people below it. At most 12.
+
+**`vite.config.ts`** writes it to `grove-tutorials.json`, which the Grove
+reads:
+
+```ts
+import { groveTutorials } from "@frc1678/grove-sdk/build"
+import tutorialCatalog from "./src/tutorial-catalog.ts"
+// plugins: [..., groveTutorials(tutorialCatalog)]
+```
+
+**`src/tutorials.tsx`** is the steps and the effects:
+
+```tsx
+import { defineTutorials, practice } from "@frc1678/grove-sdk/react"
+import { api } from "../convex/_generated/api"
+import catalog from "./tutorial-catalog"
+
+export const tutorials = defineTutorials(catalog, {
+  rsvp: {
+    effects: [
+      practice(api.rsvps.set, (args, box) => {
+        // What would this write have changed on screen? Say it for every
+        // query that shows it.
+        box.patch(api.events.list, args.eventId, { myRsvp: args.status })
+        box.patch(api.events.get, args.eventId, { myRsvp: args.status })
+        return null
+      }),
+    ],
+    steps: [
+      {
+        title: "Open a meeting",
+        body: <>Pick any meeting from the list.</>,
+        route: "/events",
+        target: "[data-tour=event-row]",
+        until: { at: (path) => path.startsWith("/events/") },
+      },
+      {
+        title: "Say you're coming",
+        body: <>Tap <strong>Going</strong>. It only changes on your screen.</>,
+        target: "[data-tour=rsvp-going]",
+        until: { did: api.rsvps.set },
+      },
+      { title: "That's an RSVP", body: <>For real, your lead sees it the moment you tap.</> },
+    ],
+  },
+  "take-attendance": { /* … */ },
+})
+```
+
+Then mount it once, inside `GroveShell`, in the layout that stays mounted
+across every route (the same place as `GroveTutorial`):
+
+```tsx
+<GroveTutorials tutorials={tutorials} pathname={pathname} navigate={navigate} />
+```
+
+### Steps
+
+| Field | |
+| --- | --- |
+| `title`, `body` | What to do, in the words on the screen. Say what the button is called. |
+| `route` | Router path the step starts on. The tutorial goes there if it is not already there. |
+| `target` | Selectors tried in order; the first visible one is ringed. Use `data-tour` attributes, and the shell's own (`[data-tour="nav:/x"]`, `[data-tour="menu"]`, `toolbar-search`, …). The page under the ring stays live. |
+| `until` | What moves the step on. Without it the step has a **Next** button. |
+
+`until` is one of:
+
+| | Moves on when |
+| --- | --- |
+| `{ did: api.x.y, when?: (args) => boolean }` | they made that write (practised, blocked, or let through by `allow`) |
+| `{ click: "selector" }` | they clicked something matching it |
+| `{ see: "selector" }` / `{ gone: "selector" }` | it is on screen / no longer on screen (a dialog opened, closed) |
+| `{ at: "/path" }`, `{ at: "/path?key=value" }` or `{ at: (pathname, search?) => boolean }` | they reached that page (with those query values, when given) |
+| `{ value: "selector", matches?: (value) => boolean }` | that field holds a new value (that `matches` accepts): changed since the step opened, and the person has left the field or paused typing |
+
+Every waiting step also offers **Skip this step**, so a page that looks
+different from what the author expected is never a dead end. Reaching the
+end is what earns the points.
+
+### Effects
+
+`practice(api.module.fn, (args, box) => result)` is typed from the function
+reference. Return what the real function returns (an id, usually). `box`:
+
+| | |
+| --- | --- |
+| `box.insert(query, doc, { at?, where? })` | add a document to a list query (an array, or `{ page: [...] }`). `where: (queryArgs) => boolean` picks which argument sets it shows in |
+| `box.patch(query, id, fields)` | merge fields into the document with that `_id`, in a list or as the query's whole result |
+| `box.remove(query, id)` | take it out of a list |
+| `box.edit(query, (result, queryArgs) => result)` | anything else: counts, nested lists, grouped results |
+| `box.doc("task", fields)` | a practice document: the fields plus a practice `_id` and `_creationTime` |
+| `box.id("task")` | a practice id, `"practice-task-k3x9a-3"` (typed loosely, so it can be returned where the real mutation returns an `Id`) |
+| `box.read(query, args?)` | what a query the page is watching shows right now, for an effect that needs a name or a count |
+| `box.readAll(query)` | `[{ args, result }]` for every set of arguments the page watches the query with, for when the write does not carry them |
+| `box.find(query, id)` | the document with that `_id` as a watched query shows it now, in a list, a page or as the whole result |
+| `box.me` | `{ name, userId }` of the person practising, for a document that shows its author |
+| `box.answer(query, (queryArgs) => result \| undefined)` | answer a query in the browser: a practice document's own page, which the server has never heard of |
+
+Rules that keep a tutorial honest:
+
+- **Edit every query that shows the change.** The list, the detail page, the
+  count in the header. Read the app's `useQuery` calls for the page, not just
+  the mutation. An edit gets the server's real result and must return the
+  same shape.
+- **A practice id is not a Convex id.** A query whose arguments mention one
+  is never sent; it stays loading unless `box.answer` answers it. So either
+  answer the detail query or keep the tutorial off the practice document's
+  own page.
+- **Prefer acting on real data** that is already on screen. Use `setup:
+  (box) => …` to lay down a practice document only when the task needs
+  something the real data may not have today (an open meeting, a pending
+  request).
+- `allow: [api.x.lookup]` lets an action that only reads really run.
+- Timers that write (presence, autosave) are dropped silently; only a write
+  right after a tap or keypress shows the "not saved" note.
+
+### Testing effects
+
+Drive them through the real `Sandbox` from `@frc1678/grove-sdk/sandbox`.
+`box.read`, `box.readAll` and `box.find` see only what the client says the
+page is watching, so a test must hand the sandbox the same two things the
+client does, or every read is `undefined` and an effect silently falls back
+to its defaults:
+
+```ts
+const sandbox = new Sandbox({
+  reader: (name, args) => fixtures[name],           // the server's result
+  watching: (name) => (name in fixtures ? [{}] : []), // the argument sets watched
+});
+sandbox.enter({ effects: tutorial.effects, setup: tutorial.setup, me: { name: "Pat" } });
+sandbox.write("mutation", "tasks:create", { title: "x" });
+expect(sandbox.view("tasks:list", {}, () => fixtures["tasks:list"])).toHaveLength(3);
+```
+
+### Writes outside Convex
+
+The sandbox sees Convex writes only. An app that also sends its own `fetch`
+to a server (a host, a printer bridge), uploads a file, or opens a page that
+starts a job should check `useTutorialMode()` and hold those back while it is
+true. `practice` is also exported from `@frc1678/grove-sdk/sandbox`, so an
+effects file and its tests need not load React.
+
+A step whose `until` is a state (`see`, `gone`, `at`, `value`) that already
+holds stays up for a moment first, so it can be read. A step `route` with a
+query string (`/queue?lane=grade`) navigates until the query matches too.
+
+### Apps with their own header
+
+While a tutorial runs, a strip sits across the top of the page and the page
+moves down by `--grove-tutorial-top` (28px; 0 otherwise). `GroveShell` reads
+it; a header of the app's own that is `sticky top-0` or `fixed top-0` should
+use `top-[var(--grove-tutorial-top,0px)]` instead, or it sits under the strip.
+
+A background queue that sends writes through the app's client (an offline
+outbox, a retry loop) sees an unpractised write fail with
+`TutorialModeError`, so it must treat that as "try later", never as sent.
+Better still, pause the queue while `useTutorialMode()` is true.
+
+`GroveShell` shows the menu item itself. An app's own `GroveMenuItem` takes `tour="<name>"` for a step to ring. An app that draws its own header
+calls `useOpenTutorials()` (null until there is something to offer) and
+`useTutorialsBadge()` ("2/5"), inside `TutorialProvider`. `TutorialRunner` is
+the runner with no Grove wiring, for a tree that has no `GroveProvider`.
+
+A link `/<slug>/?tutorial=<id>` starts that tutorial; `?tutorial` alone opens
+the list. If the app filters its list by a capability that loads late, the link waits a few
+seconds for the tutorial to be offered before settling for the list. The Grove's Tutorials page uses it.
 
 ## The version badge
 

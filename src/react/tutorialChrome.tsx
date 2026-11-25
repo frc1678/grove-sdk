@@ -4,6 +4,8 @@ import {
   TutorialLabelContext,
   TutorialOpenContext,
   TutorialSlotContext,
+  TutorialsBadgeContext,
+  TutorialsOpenContext,
   useReopenTutorial,
   type TutorialSlot,
 } from "./tutorialSlot";
@@ -35,16 +37,26 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     (open: (() => void) | null) => setChangelog(() => open),
     [],
   );
+  const [tutorials, setTutorials] = useState<(() => void) | null>(null);
+  const [badge, setBadge] = useState<string | undefined>(undefined);
+  const registerTutorials = useCallback((open: (() => void) | null, count?: string) => {
+    setTutorials(() => open);
+    setBadge(open === null ? undefined : count);
+  }, []);
   const slot = useMemo<TutorialSlot>(
-    () => ({ register, registerChangelog }),
-    [register, registerChangelog],
+    () => ({ register, registerChangelog, registerTutorials }),
+    [register, registerChangelog, registerTutorials],
   );
 
   return (
     <TutorialSlotContext.Provider value={slot}>
       <TutorialOpenContext.Provider value={reopen}>
         <ChangelogOpenContext.Provider value={changelog}>
-          <TutorialLabelContext.Provider value={label}>{children}</TutorialLabelContext.Provider>
+          <TutorialLabelContext.Provider value={label}>
+            <TutorialsOpenContext.Provider value={tutorials}>
+              <TutorialsBadgeContext.Provider value={badge}>{children}</TutorialsBadgeContext.Provider>
+            </TutorialsOpenContext.Provider>
+          </TutorialLabelContext.Provider>
         </ChangelogOpenContext.Provider>
       </TutorialOpenContext.Provider>
     </TutorialSlotContext.Provider>

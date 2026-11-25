@@ -82,6 +82,12 @@ export type FeedbackSubmission = {
   };
 };
 
+// What someone has finished, across every app, and what it has earned them.
+export type TutorialProgress = {
+  points: number;
+  completed: Array<{ app: string; tutorial: string; at: number }>;
+};
+
 export const groveApi = {
   users: {
     me: anyApi.users.me as Query<NoArgs, Me | null>,
@@ -107,6 +113,14 @@ export const groveApi = {
     record: anyApi.usage.record as Mutation<
       { app: string; sessionId: string; events: Array<{ name: string; at: number; path?: string }> },
       { recorded: number }
+    >,
+  },
+  tutorials: {
+    // Newer Grove only. GroveTutorials treats a failure as "nothing known".
+    mine: anyApi.tutorials.mine as Query<NoArgs, TutorialProgress>,
+    complete: anyApi.tutorials.complete as Mutation<
+      { app: string; tutorial: string },
+      { first: boolean }
     >,
   },
 };

@@ -15,6 +15,9 @@ export type TutorialSlot = {
   // "How <app> works".
   register: (open: (() => void) | null, label?: string) => void;
   registerChangelog?: (open: (() => void) | null) => void;
+  // The hands-on tutorials (../tutorials): opens the list. `badge` is how
+  // many this person has done, "2/5", shown beside the menu item.
+  registerTutorials?: (open: (() => void) | null, badge?: string) => void;
 };
 
 // A tutorial rendered outside a GroveShell still works; it just has no
@@ -49,4 +52,19 @@ export const TutorialLabelContext = createContext<string | undefined>(undefined)
 
 export function useTutorialLabel(): string | undefined {
   return useContext(TutorialLabelContext);
+}
+
+// Opens the list of hands-on tutorials. Null until a <GroveTutorials> with
+// something to offer this person has mounted.
+export const TutorialsOpenContext = createContext<(() => void) | null>(null);
+
+export function useOpenTutorials(): (() => void) | null {
+  return useContext(TutorialsOpenContext);
+}
+
+// "2/5": how many of them this person has done.
+export const TutorialsBadgeContext = createContext<string | undefined>(undefined);
+
+export function useTutorialsBadge(): string | undefined {
+  return useContext(TutorialsBadgeContext);
 }

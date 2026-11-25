@@ -13,6 +13,8 @@
     "./server": "./src/server/index.ts",
     "./build": "./src/build/index.js",
     "./search-index": "./src/build/searchIndex.js",
+    "./tutorial-catalog": "./src/build/tutorialCatalog.js",
+    "./sandbox": "./src/sandbox/index.ts",
     "./react": "./src/react/index.tsx",
     "./client": "./src/client/index.ts",
     "./report": "./src/report/index.ts",

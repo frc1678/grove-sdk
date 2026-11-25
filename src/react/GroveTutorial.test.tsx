@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import type { FunctionReference } from "convex/server";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+const practice = vi.hoisted(() => ({ sandbox: undefined as undefined | import("../sandbox/sandbox").Sandbox }));
 const state = vi.hoisted(() => ({
   seen: null as number | null | undefined,
   recorded: [] as number[],
@@ -14,10 +15,11 @@ vi.mock("convex/react", () => ({
     return null;
   },
 }));
-vi.mock("./provider", () => ({ useGrove: () => ({ appName: "Chime" }) }));
+vi.mock("./provider", () => ({ useGrove: () => ({ appName: "Chime", app: { sandbox: practice.sandbox } }) }));
 vi.mock("./guards", () => ({ useMe: () => ({ status: "active" }) }));
 
 const { GroveTutorial } = await import("./GroveTutorial");
+const { Sandbox } = await import("../sandbox/sandbox");
 const { TutorialProvider } = await import("./tutorialChrome");
 const { useOpenChangelog, useTutorialLabel } = await import("./tutorialSlot");
 
@@ -181,6 +183,28 @@ describe("GroveTutorial", () => {
       .getAllByRole("dialog", { hidden: true })
       .find((dialog) => dialog.getAttribute("aria-label") !== "Chime tour") as HTMLDialogElement;
     expect(slidesDialog.open).toBe(false);
+  });
+
+  test("the tour keeps out of the way while a hands-on tutorial runs, and opens after", () => {
+    state.seen = null;
+    const sandbox = new Sandbox();
+    practice.sandbox = sandbox;
+    sandbox.enter();
+    try {
+      render(
+        <GroveTutorial
+          version={3}
+          tour={[{ title: "Welcome to the tour", body: "step one" }]}
+          seenVersion={seenVersion}
+          markSeen={markSeen}
+        />,
+      );
+      expect(screen.queryByText("Welcome to the tour")).toBeNull();
+      act(() => sandbox.exit());
+      expect(screen.getByText("Welcome to the tour")).toBeDefined();
+    } finally {
+      practice.sandbox = undefined;
+    }
   });
 
   test("with a tour, the menu's way back in is called Take the tour", () => {
