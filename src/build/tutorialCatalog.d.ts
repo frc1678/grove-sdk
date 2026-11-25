@@ -16,6 +16,11 @@ export type TutorialCatalogEntry = {
   minutes?: number;
   /** Who it is offered to. Defaults to "student". */
   minRole?: TutorialRole;
+  /**
+   * Grove groups offered it whatever their role ("Outreach Leads"), for access
+   * an app grants by group. The app still filters by its own capability.
+   */
+  groups?: readonly string[];
 };
 
 /** The contents of grove-tutorials.json. */
@@ -31,6 +36,7 @@ export declare const MAX_TUTORIALS: number;
 export declare const MIN_POINTS: number;
 export declare const MAX_POINTS: number;
 export declare const MAX_MINUTES: number;
+export declare const MAX_GROUPS: number;
 export declare const TUTORIAL_ID: RegExp;
 
 /** Identity, typed for autocompletion in src/tutorial-catalog.ts. */

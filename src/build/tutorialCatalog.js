@@ -34,7 +34,8 @@ export const MAX_POINTS = 50;
 export const MAX_MINUTES = 30;
 export const TUTORIAL_ID = /^[a-z][a-z0-9-]{0,39}$/;
 
-const FIELDS = new Set(["id", "title", "summary", "points", "minutes", "minRole"]);
+const FIELDS = new Set(["id", "title", "summary", "points", "minutes", "minRole", "groups"]);
+export const MAX_GROUPS = 5;
 
 /** Identity, typed, so src/tutorial-catalog.ts gets autocompletion. */
 export function defineTutorialCatalog(tutorials) {
@@ -113,6 +114,22 @@ export function validateTutorialCatalog(tutorials) {
         problems.push(`minRole must be one of ${TUTORIAL_ROLES.join(", ")}`);
       }
       out.minRole = minRole;
+
+      // Grove groups ("Outreach Leads") offered it whatever their role: for
+      // access an app grants by group rather than by role. The Grove drops a
+      // name it does not know; see GET /api/v1/groups.
+      if (tutorial.groups !== undefined) {
+        if (
+          !Array.isArray(tutorial.groups) ||
+          tutorial.groups.length === 0 ||
+          tutorial.groups.length > MAX_GROUPS ||
+          !tutorial.groups.every((group) => typeof group === "string" && group.trim() !== "" && group.length <= 40)
+        ) {
+          problems.push(`groups must be 1–${MAX_GROUPS} group names`);
+        } else {
+          out.groups = tutorial.groups.map((group) => group.trim());
+        }
+      }
     }
     const label = typeof tutorial?.id === "string" ? `${i + 1} (${tutorial.id})` : `${i + 1}`;
     for (const problem of problems) errors.push(`tutorial ${label}: ${problem}`);

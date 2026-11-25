@@ -264,7 +264,9 @@ export default defineTutorialCatalog([
 ])
 ```
 
-`id` is permanent (completions are kept by it). `points` is 5–50, about five
+`id` is permanent (completions are kept by it). `groups` names Grove groups offered a tutorial whatever their
+role (`groups: ["Outreach Leads"]` beside `minRole: "lead"`), for access an
+app grants by group; filter by the app's own capability as well. `points` is 5–50, about five
 a minute. `minRole` hides a tutorial from people below it. At most 12.
 
 **`vite.config.ts`** writes it to `grove-tutorials.json`, which the Grove
@@ -357,7 +359,7 @@ reference. Return what the real function returns (an id, usually). `box`:
 | `box.remove(query, id)` | take it out of a list |
 | `box.edit(query, (result, queryArgs) => result)` | anything else: counts, nested lists, grouped results |
 | `box.doc("task", fields)` | a practice document: the fields plus a practice `_id` and `_creationTime` |
-| `box.id("task")` | a practice id, `"practice-task-3"` (typed loosely, so it can be returned where the real mutation returns an `Id`) |
+| `box.id("task")` | a practice id, `"practice-task-k3x9a-3"` (typed loosely, so it can be returned where the real mutation returns an `Id`) |
 | `box.read(query, args?)` | what a query the page is watching shows right now, for an effect that needs a name or a count |
 | `box.readAll(query)` | `[{ args, result }]` for every set of arguments the page watches the query with, for when the write does not carry them |
 | `box.find(query, id)` | the document with that `_id` as a watched query shows it now, in a list, a page or as the whole result |

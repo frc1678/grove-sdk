@@ -28,6 +28,15 @@ describe("validateTutorialCatalog", () => {
     ]);
   });
 
+  test("groups are kept, trimmed, and checked", () => {
+    expect(validateTutorialCatalog([{ ...good, groups: [" Outreach Leads "] }]).tutorials?.[0]).toMatchObject({
+      groups: ["Outreach Leads"],
+    });
+    expect(validateTutorialCatalog([{ ...good, groups: [] }]).errors).toEqual([
+      "tutorial 1 (rsvp): groups must be 1–5 group names",
+    ]);
+  });
+
   test("the plugin refuses a bad catalog when the config loads", () => {
     expect(() => groveTutorials([{ ...good, points: 0 }])).toThrow(/grove-tutorials.json has 1 problem/);
     expect(JSON.parse(tutorialCatalogJson([good]))).toMatchObject({ version: 1 });

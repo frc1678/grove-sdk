@@ -9,6 +9,11 @@ const catalog = [
   { id: "add", title: "Add a task", summary: "Make one.", points: 10, minutes: 2 },
   { id: "manage", title: "Close the season", summary: "Leads only.", points: 20, minRole: "lead" },
 ] as const;
+// A const catalog naming groups must still type-check through defineTutorials.
+defineTutorials(
+  [{ id: "grouped", title: "Grouped", summary: "s", points: 5, minRole: "lead", groups: ["Outreach Leads"] }] as const,
+  { grouped: { steps: [{ title: "t", body: "b" }] } },
+);
 
 const tutorials: Tutorial[] = defineTutorials(catalog, {
   add: {
@@ -80,6 +85,8 @@ describe("TutorialRunner", () => {
   test("offers only what the role may see", () => {
     expect(tutorialsFor(tutorials, "student").map((t) => t.id)).toEqual(["add"]);
     expect(tutorialsFor(tutorials, "coach").map((t) => t.id)).toEqual(["add", "manage"]);
+    // A tutorial a group may take is left to the app's own filter.
+    expect(tutorialsFor([{ id: "g", minRole: "lead" as const, groups: ["Outreach Leads"] }], "student")).toHaveLength(1);
     mount(new Sandbox());
     expect(badge).toBe("0/1");
     act(() => opener?.());

@@ -74,12 +74,17 @@ const ORDER: Record<TutorialRole, number> = { student: 0, lead: 1, coach: 2, adm
 
 // The tutorials offered to someone in this role. An unknown role (still
 // loading) is offered what a student is.
-export function tutorialsFor<T extends { minRole?: TutorialRole }>(
+// A tutorial that names `groups` is not held back by role here: the app's
+// own capability filter (on the list it hands GroveTutorials) decides, and
+// the Grove checks the group itself.
+export function tutorialsFor<T extends { minRole?: TutorialRole; groups?: readonly string[] }>(
   tutorials: readonly T[],
   role: TutorialRole | undefined,
 ): T[] {
   const rank = ORDER[role ?? "student"];
-  return tutorials.filter((tutorial) => ORDER[tutorial.minRole ?? "student"] <= rank);
+  return tutorials.filter(
+    (tutorial) => ORDER[tutorial.minRole ?? "student"] <= rank || (tutorial.groups?.length ?? 0) > 0,
+  );
 }
 
 // The path part of a step's route: "/orders?tab=open" is on "/orders".

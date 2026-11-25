@@ -148,6 +148,9 @@ export class Sandbox {
   private effects = new Map<string, SandboxEffect["run"]>();
   private allowed = new Set<string>();
   private counter = 0;
+  // Different on every page load and every tutorial, so an id an app kept
+  // (sessionStorage, "already opened") never matches the next run's.
+  private run = "";
   private mintedIds = false;
   private me: SandboxTools["me"] = {};
   private readonly listeners = new Set<() => void>();
@@ -191,6 +194,7 @@ export class Sandbox {
   ): void {
     this.reset();
     this.isActive = true;
+    this.run = Math.random().toString(36).slice(2, 7);
     this.me = options.me ?? {};
     for (const effect of options.effects ?? []) this.effects.set(effect.name, effect.run);
     for (const fn of options.allow ?? []) this.allowed.add(functionName(fn));
@@ -303,7 +307,7 @@ export class Sandbox {
     const id = (label = "doc") => {
       this.counter += 1;
       this.mintedIds = true;
-      return `${PRACTICE_PREFIX}${label}-${this.counter}`;
+      return `${PRACTICE_PREFIX}${label}-${this.run}-${this.counter}`;
     };
     const readOne = (name: string, args: Record<string, unknown>): unknown => {
       try {
