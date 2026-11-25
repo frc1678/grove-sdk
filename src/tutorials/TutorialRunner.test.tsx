@@ -242,6 +242,44 @@ describe("TutorialRunner", () => {
     expect(screen.getByText("Named")).toBeTruthy();
   });
 
+  test("Back returns to the page an earlier step was on", () => {
+    const paged = defineTutorials([{ id: "paged", title: "Paged", summary: "s", points: 5 }] as const, {
+      paged: {
+        steps: [
+          { title: "On the meeting", body: "b" },
+          { title: "Now Settings", body: "b", route: "/settings" },
+        ],
+      },
+    });
+    const go = vi.fn();
+    const sandbox = new Sandbox();
+    const view = (p: string) => (
+      <TutorialRunner
+        sandbox={sandbox}
+        appName="Tasks"
+        tutorials={paged}
+        role="student"
+        completed={new Set()}
+        onComplete={onComplete}
+        pathname={p}
+        navigate={go}
+        register={(open) => {
+          opener = open;
+        }}
+      />
+    );
+    const { rerender } = render(view("/events/42"));
+    act(() => opener?.());
+    fireEvent.click(button("Start"));
+    fireEvent.click(button("Start"));
+    fireEvent.click(button("Next"));
+    expect(go).toHaveBeenLastCalledWith("/settings");
+    rerender(view("/settings"));
+    fireEvent.click(button("Back"));
+    expect(screen.getByText("On the meeting")).toBeTruthy();
+    expect(go).toHaveBeenLastCalledWith("/events/42");
+  });
+
   test("points are promised only once the Grove has recorded them", async () => {
     onComplete.mockReturnValue(Promise.resolve(false));
     const sandbox = new Sandbox();
