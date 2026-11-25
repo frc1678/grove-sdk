@@ -75,6 +75,9 @@ const LINK_WAIT_MS = 4000;
 // The least time a step is on screen before a condition that already
 // holds moves it on. A tap or a write moves it on at once.
 const READ_MS = 1500;
+// A typed value counts once the field has lost focus, or has not changed
+// for this long: not at the first keystroke, mid-word.
+const SETTLE_MS = 1200;
 
 const MODE_CLASS = "grove-tutorial-mode";
 const STYLE_ID = "grove-tutorial-style";
@@ -343,6 +346,11 @@ export function TutorialRunner({
     // person was on could already satisfy a condition meant for after it.
     let arrived = onRoute();
     const opened = Date.now();
+    // For `value`: what the field held when the step opened (a prefilled
+    // name is not the person's), and when it last changed.
+    let startValue: string | undefined;
+    let lastValue: string | undefined;
+    let changedAt = opened;
     let met = false;
     let scrolled = false;
     let topLayer = 0;
@@ -380,7 +388,19 @@ export function TutorialRunner({
         // A state that already holds when the step opens (a dialog still up
         // from the last one) would move on before anyone read the step.
         if (!arrived) arrived = onRoute();
-        if (arrived && Date.now() - opened >= READ_MS && untilMet(until, here.current.pathname, document)) pass();
+        let settled = true;
+        if ("value" in until) {
+          const fields = [...document.querySelectorAll<HTMLInputElement>(until.value)];
+          const now = fields.map((field) => field.value ?? field.textContent ?? "").join("\u0000");
+          if (startValue === undefined && arrived) startValue = now;
+          if (now !== lastValue) {
+            lastValue = now;
+            changedAt = Date.now();
+          }
+          const typing = fields.some((field) => field === document.activeElement);
+          settled = now !== startValue && (!typing || Date.now() - changedAt >= SETTLE_MS);
+        }
+        if (arrived && settled && Date.now() - opened >= READ_MS && untilMet(until, here.current.pathname, document)) pass();
       }
     };
     // Not on the first tick for a state the page may already be in from the

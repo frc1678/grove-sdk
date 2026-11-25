@@ -1,6 +1,6 @@
 // The tutorial sandbox: see sandbox.ts for what it is and client.ts for
 // where it sits.
-export { SandboxConvexClient } from "./client";
+export { NOT_SAVED_MESSAGE, SandboxConvexClient, TutorialModeError } from "./client";
 export { practice } from "./practice";
 export {
   functionName,

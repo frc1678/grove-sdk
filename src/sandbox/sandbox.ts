@@ -108,7 +108,7 @@ export type SandboxEvent = {
 };
 
 export type SandboxWrite =
-  | { handled: true; value: unknown }
+  | { handled: true; value: unknown; blocked?: boolean }
   // Not the sandbox's business: send it as usual.
   | { handled: false };
 
@@ -286,7 +286,7 @@ export class Sandbox {
     const effect = this.effects.get(name);
     if (effect === undefined) {
       this.emit({ kind: "blocked", write: kind, name, args });
-      return { handled: true, value: null };
+      return { handled: true, value: null, blocked: true };
     }
     let value: unknown = null;
     try {

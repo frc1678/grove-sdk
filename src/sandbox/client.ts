@@ -6,6 +6,18 @@ import { Sandbox, type SandboxOptions } from "./sandbox";
 // saving state shows, as it would against the server.
 const PRACTICE_DELAY_MS = 120;
 
+// What a write the tutorial does not practise fails with. Failing, not
+// resolving null: the app's own error handling then says it (a toast), and
+// code that would use the result (navigate to the new id, read a field of
+// it) never runs. A null result led to /items/null pages and TypeErrors.
+export const NOT_SAVED_MESSAGE = "Not saved: you're in tutorial mode, so that isn't part of this practice.";
+export class TutorialModeError extends Error {
+  constructor() {
+    super(NOT_SAVED_MESSAGE);
+    this.name = "TutorialModeError";
+  }
+}
+
 // The Convex client every Grove app talks to its own deployment through,
 // with the tutorial sandbox (sandbox.ts) on the only two doors a write can
 // leave by. While the sandbox is closed this is ConvexReactClient exactly:
@@ -134,6 +146,9 @@ export class SandboxConvexClient extends ConvexReactClient {
     if (!this.sandbox.active) return null;
     const result = this.sandbox.write(kind, getFunctionName(fn), args ?? {});
     if (!result.handled) return null;
+    if (result.blocked === true) {
+      return new Promise((_, reject) => setTimeout(() => reject(new TutorialModeError()), PRACTICE_DELAY_MS));
+    }
     return new Promise((resolve) => setTimeout(() => resolve(result.value), PRACTICE_DELAY_MS));
   }
 }

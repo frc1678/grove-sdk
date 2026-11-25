@@ -238,8 +238,10 @@ and `useAction` call is stopped before it leaves the browser:
 - a write the tutorial **practises** runs its *effect* instead: a function
   that says what the write would have changed on screen, by editing query
   results in the browser on top of what the server last sent;
-- any **other** write is dropped, resolves `null`, and the person is told it
-  was not saved.
+- any **other** write is dropped and fails with a `TutorialModeError`
+  ("Not saved: you're in tutorial mode…"), so the app's own error toast says
+  so and code that would use the result never runs. The runner also shows
+  a note.
 
 Queries keep running, so the page shows live production data with the
 practice changes layered over it. Exiting throws the layer away. There is no
@@ -248,8 +250,8 @@ fake-data mode and no server code to write: the app's backend is untouched.
 Things the sandbox cannot see, and a tutorial must stay away from: a raw
 `fetch` to an HTTP action, a file upload to a storage URL, `window.open`,
 and anything written through the **Grove's** client (Report a problem really
-does file a report). A blocked `generateUploadUrl` returns `null`, so an
-upload step fails harmlessly; do not build a tutorial around one.
+does file a report). A blocked `generateUploadUrl` fails, so an upload step
+fails harmlessly; do not build a tutorial around one.
 
 ### The three files
 
@@ -341,7 +343,7 @@ across every route (the same place as `GroveTutorial`):
 | `{ click: "selector" }` | they clicked something matching it |
 | `{ see: "selector" }` / `{ gone: "selector" }` | it is on screen / no longer on screen (a dialog opened, closed) |
 | `{ at: "/path" }`, `{ at: "/path?key=value" }` or `{ at: (pathname, search) => boolean }` | they reached that page (with those query values, when given) |
-| `{ value: "selector", matches?: (value) => boolean }` | that field holds a value |
+| `{ value: "selector", matches?: (value) => boolean }` | that field holds a new value (that `matches` accepts): changed since the step opened, and the person has left the field or paused typing |
 
 Every waiting step also offers **Skip this step**, so a page that looks
 different from what the author expected is never a dead end. Reaching the

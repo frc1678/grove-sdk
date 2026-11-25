@@ -202,6 +202,46 @@ describe("TutorialRunner", () => {
     expect(screen.getByText("Two")).toBeTruthy();
   });
 
+  test("a typed value counts once it has changed and the person has stopped typing", () => {
+    const named = defineTutorials([{ id: "name", title: "Name", summary: "s", points: 5 }] as const, {
+      name: { steps: [{ title: "Name it", body: "b", until: { value: "#robot-name" } }, { title: "Named", body: "b" }] },
+    });
+    const sandbox = new Sandbox();
+    render(
+      <>
+        <input id="robot-name" defaultValue="Robot 3" />
+        <TutorialRunner
+          sandbox={sandbox}
+          appName="Sim"
+          tutorials={named}
+          role="student"
+          completed={new Set()}
+          onComplete={onComplete}
+          pathname="/"
+          navigate={navigate}
+          register={(open) => {
+            opener = open;
+          }}
+        />
+      </>,
+    );
+    act(() => opener?.());
+    fireEvent.click(button("Start"));
+    fireEvent.click(button("Start"));
+    // The prefilled name is not theirs.
+    tick(2000);
+    expect(screen.getByText("Name it")).toBeTruthy();
+    const field = document.getElementById("robot-name") as HTMLInputElement;
+    act(() => field.focus());
+    fireEvent.change(field, { target: { value: "R" } });
+    tick(600);
+    expect(screen.getByText("Name it")).toBeTruthy();
+    fireEvent.change(field, { target: { value: "Rover" } });
+    act(() => field.blur());
+    tick(1000);
+    expect(screen.getByText("Named")).toBeTruthy();
+  });
+
   test("points are promised only once the Grove has recorded them", async () => {
     onComplete.mockReturnValue(Promise.resolve(false));
     const sandbox = new Sandbox();

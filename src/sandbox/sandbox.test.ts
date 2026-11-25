@@ -94,8 +94,8 @@ describe("Sandbox", () => {
     open(sandbox);
     const events: SandboxEvent[] = [];
     sandbox.onEvent((event) => events.push(event));
-    expect(sandbox.write("mutation", "settings:wipe", {})).toEqual({ handled: true, value: null });
-    expect(sandbox.write("action", "email:send", {})).toEqual({ handled: true, value: null });
+    expect(sandbox.write("mutation", "settings:wipe", {})).toEqual({ handled: true, value: null, blocked: true });
+    expect(sandbox.write("action", "email:send", {})).toEqual({ handled: true, value: null, blocked: true });
     sandbox.write("mutation", "tasks:finish", { id: "a" });
     expect(events.map((event) => `${event.kind} ${event.name}`)).toEqual([
       "blocked settings:wipe",

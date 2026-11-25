@@ -91,6 +91,7 @@ export {
   PRACTICE_PREFIX,
   Sandbox,
   SandboxConvexClient,
+  TutorialModeError,
   type SandboxEffect,
   type SandboxEvent,
   type SandboxTools,

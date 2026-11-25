@@ -1,6 +1,6 @@
 import { anyApi } from "convex/server";
 import { afterEach, describe, expect, test } from "vitest";
-import { SandboxConvexClient } from "./client";
+import { SandboxConvexClient, TutorialModeError } from "./client";
 
 // A socket that records what the client tries to send and never connects.
 const sent: string[] = [];
@@ -44,8 +44,10 @@ describe("SandboxConvexClient", () => {
       effects: [{ name: "tasks:create", run: () => "practice-task-1" }],
     });
     await expect(convex.mutation(anyApi.tasks.create, { title: "x" })).resolves.toBe("practice-task-1");
-    await expect(convex.mutation(anyApi.tasks.wipe, {})).resolves.toBeNull();
-    await expect(convex.action(anyApi.email.send, {})).resolves.toBeNull();
+    // Not practised: it fails with a plain message, so the app's own error
+    // handling says so and nothing uses a missing result.
+    await expect(convex.mutation(anyApi.tasks.wipe, {})).rejects.toThrow(/tutorial mode/);
+    await expect(convex.action(anyApi.email.send, {})).rejects.toBeInstanceOf(TutorialModeError);
     await settle();
     expect(sent.filter((message) => /"type":"(Mutation|Action)"/.test(message))).toEqual([]);
     await convex.close();
