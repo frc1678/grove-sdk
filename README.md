@@ -444,6 +444,12 @@ outbox, a retry loop) sees an unpractised write fail with
 `TutorialModeError`, so it must treat that as "try later", never as sent.
 Better still, pause the queue while `useTutorialMode()` is true.
 
+A client the app opens to *another* app's deployment (Parts filing a Harvest
+request, BotTok reading Retro's files) is invisible to the sandbox too. Reads
+through it are fine. A write through it must check `useTutorialMode()` and
+refuse with `TutorialModeError`, or practising in one app files something
+real in another.
+
 `GroveShell` shows the menu item itself. An app's own `GroveMenuItem` takes `tour="<name>"` for a step to ring. An app that draws its own header
 calls `useOpenTutorials()` (null until there is something to offer) and
 `useTutorialsBadge()` ("2/5"), inside `TutorialProvider`. `TutorialRunner` is
