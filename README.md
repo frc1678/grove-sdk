@@ -384,6 +384,24 @@ Rules that keep a tutorial honest:
 - Timers that write (presence, autosave) are dropped silently; only a write
   right after a tap or keypress shows the "not saved" note.
 
+### Testing effects
+
+Drive them through the real `Sandbox` from `@frc1678/grove-sdk/sandbox`.
+`box.read`, `box.readAll` and `box.find` see only what the client says the
+page is watching, so a test must hand the sandbox the same two things the
+client does, or every read is `undefined` and an effect silently falls back
+to its defaults:
+
+```ts
+const sandbox = new Sandbox({
+  reader: (name, args) => fixtures[name],           // the server's result
+  watching: (name) => (name in fixtures ? [{}] : []), // the argument sets watched
+});
+sandbox.enter({ effects: tutorial.effects, setup: tutorial.setup, me: { name: "Pat" } });
+sandbox.write("mutation", "tasks:create", { title: "x" });
+expect(sandbox.view("tasks:list", {}, () => fixtures["tasks:list"])).toHaveLength(3);
+```
+
 ### Writes outside Convex
 
 The sandbox sees Convex writes only. An app that also sends its own `fetch`
