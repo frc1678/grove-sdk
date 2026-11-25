@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReference } from "convex/server";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { useMe } from "./guards";
 import { useGrove } from "./provider";
 import { GroveTour, type TourStep } from "./GroveTour";
@@ -65,7 +65,16 @@ export function GroveTutorial({
   navigate,
 }: GroveTutorialProps) {
   const me = useMe();
-  const { appName } = useGrove();
+  const { appName, app } = useGrove();
+  // While a hands-on tutorial runs (../tutorials), the first-run tour keeps
+  // out of its way: it would open on top of it, move to its own pages, and
+  // its "seen" write would be refused by the sandbox. It opens afterwards.
+  const sandbox = app?.sandbox;
+  const practising = useSyncExternalStore(
+    useCallback((onChange: () => void) => sandbox?.subscribe(onChange) ?? (() => {}), [sandbox]),
+    () => sandbox?.active ?? false,
+    () => false,
+  );
   const seen = useQuery(seenVersion, {});
   const record = useMutation(markSeen);
   const slot = useTutorialSlot();
@@ -136,7 +145,10 @@ export function GroveTutorial({
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("tutorial"),
   );
   useEffect(() => {
-    if (offered.current || linkedToTutorial) return;
+    if (practising) setTouring(false);
+  }, [practising]);
+  useEffect(() => {
+    if (offered.current || linkedToTutorial || practising) return;
     const opening = autoOpening({
       seenVersion: seen,
       version,
@@ -153,7 +165,7 @@ export function GroveTutorial({
     setEntries(unseenChanges(changelog, seen ?? 0, version));
     setMode("changelog");
     setOpen(true);
-  }, [seen, version, me?.status, slides.length, tour.length, changelog, show, linkedToTutorial]);
+  }, [seen, version, me?.status, slides.length, tour.length, changelog, show, linkedToTutorial, practising]);
 
   // Lend the header a way back in, but only while there is something to
   // show. Registering null on unmount takes the button away with it.
