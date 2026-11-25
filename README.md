@@ -418,6 +418,16 @@ query string (`/queue?lane=grade`) navigates until the query matches too.
 
 ### Apps with their own header
 
+While a tutorial runs, a strip sits across the top of the page and the page
+moves down by `--grove-tutorial-top` (28px; 0 otherwise). `GroveShell` reads
+it; a header of the app's own that is `sticky top-0` or `fixed top-0` should
+use `top-[var(--grove-tutorial-top,0px)]` instead, or it sits under the strip.
+
+A background queue that sends writes through the app's client (an offline
+outbox, a retry loop) sees an unpractised write fail with
+`TutorialModeError`, so it must treat that as "try later", never as sent.
+Better still, pause the queue while `useTutorialMode()` is true.
+
 `GroveShell` shows the menu item itself. An app's own `GroveMenuItem` takes `tour="<name>"` for a step to ring. An app that draws its own header
 calls `useOpenTutorials()` (null until there is something to offer) and
 `useTutorialsBadge()` ("2/5"), inside `TutorialProvider`. `TutorialRunner` is
