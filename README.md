@@ -342,7 +342,7 @@ across every route (the same place as `GroveTutorial`):
 | `{ did: api.x.y, when?: (args) => boolean }` | they made that write (practised, blocked, or let through by `allow`) |
 | `{ click: "selector" }` | they clicked something matching it |
 | `{ see: "selector" }` / `{ gone: "selector" }` | it is on screen / no longer on screen (a dialog opened, closed) |
-| `{ at: "/path" }`, `{ at: "/path?key=value" }` or `{ at: (pathname, search) => boolean }` | they reached that page (with those query values, when given) |
+| `{ at: "/path" }`, `{ at: "/path?key=value" }` or `{ at: (pathname, search?) => boolean }` | they reached that page (with those query values, when given) |
 | `{ value: "selector", matches?: (value) => boolean }` | that field holds a new value (that `matches` accepts): changed since the step opened, and the person has left the field or paused typing |
 
 Every waiting step also offers **Skip this step**, so a page that looks

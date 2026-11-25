@@ -108,7 +108,7 @@ export type SandboxEvent = {
 };
 
 export type SandboxWrite =
-  | { handled: true; value: unknown; blocked?: boolean }
+  | { handled: true; value: unknown }
   // Not the sandbox's business: send it as usual.
   | { handled: false };
 
@@ -276,7 +276,13 @@ export class Sandbox {
   }
 
   // A mutation or action the app is about to send.
+  // Whether the most recent write() was dropped rather than practised. Read
+  // by the client straight after the call (it is synchronous), so the result
+  // keeps its long-standing shape.
+  lastWriteBlocked = false;
+
   write(kind: "mutation" | "action", name: string, args: unknown): SandboxWrite {
+    this.lastWriteBlocked = false;
     if (!this.isActive || this.passthrough(name)) return { handled: false };
     if (this.allowed.has(name)) {
       // Sent for real, but a step may still wait on it (`until: { did }`).
@@ -286,7 +292,8 @@ export class Sandbox {
     const effect = this.effects.get(name);
     if (effect === undefined) {
       this.emit({ kind: "blocked", write: kind, name, args });
-      return { handled: true, value: null, blocked: true };
+      this.lastWriteBlocked = true;
+      return { handled: true, value: null };
     }
     let value: unknown = null;
     try {

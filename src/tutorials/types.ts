@@ -26,7 +26,7 @@ export type TutorialUntil =
   // They reached this page: an exact router path, or a test of it.
   // A string with a query ("/runs?group=battery") must match it too; a test
   // gets the query string ("?group=battery", or "") as well as the path.
-  | { at: string | ((pathname: string, search: string) => boolean) }
+  | { at: string | ((pathname: string, search?: string) => boolean) }
   // A field matching this selector holds a value (that `matches` accepts).
   | { value: string; matches?: (value: string) => boolean };
 

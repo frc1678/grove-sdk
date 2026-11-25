@@ -156,7 +156,7 @@ describe("TutorialRunner", () => {
   test("`at` can wait on the query string as well as the path", () => {
     expect(untilMet({ at: "/runs?group=battery" }, "/runs", document, "?group=battery&sort=date")).toBe(true);
     expect(untilMet({ at: "/runs?group=battery" }, "/runs", document, "?group=date")).toBe(false);
-    expect(untilMet({ at: (_path, search) => search.includes("sort=") }, "/runs", document, "?sort=x")).toBe(true);
+    expect(untilMet({ at: (_path, search) => (search ?? "").includes("sort=") }, "/runs", document, "?sort=x")).toBe(true);
     expect(untilMet({ at: "/runs" }, "/runs", document, "?anything")).toBe(true);
   });
 

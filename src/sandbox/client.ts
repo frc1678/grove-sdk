@@ -146,7 +146,7 @@ export class SandboxConvexClient extends ConvexReactClient {
     if (!this.sandbox.active) return null;
     const result = this.sandbox.write(kind, getFunctionName(fn), args ?? {});
     if (!result.handled) return null;
-    if (result.blocked === true) {
+    if (this.sandbox.lastWriteBlocked) {
       return new Promise((_, reject) => setTimeout(() => reject(new TutorialModeError()), PRACTICE_DELAY_MS));
     }
     return new Promise((resolve) => setTimeout(() => resolve(result.value), PRACTICE_DELAY_MS));
