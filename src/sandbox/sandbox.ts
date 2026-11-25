@@ -100,7 +100,8 @@ export type SandboxEffect = {
 export type SandboxEvent = {
   // "practiced": a write the tutorial has an effect for.
   // "blocked": any other write. It was dropped.
-  kind: "practiced" | "blocked";
+  // "allowed": a function the tutorial lets through (`allow`). It was sent.
+  kind: "practiced" | "blocked" | "allowed";
   write: "mutation" | "action";
   name: string;
   args: unknown;
@@ -272,7 +273,10 @@ export class Sandbox {
 
   // A mutation or action the app is about to send.
   write(kind: "mutation" | "action", name: string, args: unknown): SandboxWrite {
-    if (!this.isActive || this.passthrough(name) || this.allowed.has(name)) {
+    if (!this.isActive || this.passthrough(name)) return { handled: false };
+    if (this.allowed.has(name)) {
+      // Sent for real, but a step may still wait on it (`until: { did }`).
+      this.emit({ kind: "allowed", write: kind, name, args });
       return { handled: false };
     }
     const effect = this.effects.get(name);

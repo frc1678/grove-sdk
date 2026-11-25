@@ -335,7 +335,7 @@ across every route (the same place as `GroveTutorial`):
 
 | | Moves on when |
 | --- | --- |
-| `{ did: api.x.y, when?: (args) => boolean }` | they made that write (practised or not) |
+| `{ did: api.x.y, when?: (args) => boolean }` | they made that write (practised, blocked, or let through by `allow`) |
 | `{ click: "selector" }` | they clicked something matching it |
 | `{ see: "selector" }` / `{ gone: "selector" }` | it is on screen / no longer on screen (a dialog opened, closed) |
 | `{ at: "/path" }` or `{ at: (pathname) => boolean }` | they reached that page |

@@ -107,7 +107,10 @@ describe("Sandbox", () => {
   test("allowed and passthrough functions are sent as usual", () => {
     const sandbox = new Sandbox({ passthrough: (name) => name.startsWith("auth:") });
     open(sandbox);
+    const events: SandboxEvent[] = [];
+    sandbox.onEvent((event) => events.push(event));
     expect(sandbox.write("action", "lookup:fetch", {})).toEqual({ handled: false });
+    expect(events.map((event) => event.kind)).toEqual(["allowed"]);
     expect(sandbox.write("action", "auth:signIn", {})).toEqual({ handled: false });
   });
 
