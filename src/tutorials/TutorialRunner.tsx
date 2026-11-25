@@ -36,7 +36,9 @@ export type TutorialRunnerProps = {
   // Ids of the tutorials this person has finished. Undefined while unknown.
   completed: ReadonlySet<string> | undefined;
   // Called once each time someone reaches the end of a tutorial.
-  onComplete: (tutorial: Tutorial) => void;
+  // Return a promise of whether the Grove recorded it, and the done card says
+  // "+N points" only once it has; return nothing and it is taken as recorded.
+  onComplete: (tutorial: Tutorial) => void | Promise<boolean>;
   // The router's current path and its navigate.
   pathname: string;
   navigate: (to: string) => void;
@@ -54,6 +56,8 @@ type Run = {
   phase: "intro" | "steps" | "done" | "free";
   // Whether finishing earned the points, or they were already earned.
   first: boolean;
+  // Whether the Grove has the completion: still sending, yes, or not.
+  recorded: "sending" | "yes" | "no";
 };
 
 type Box = { top: number; left: number; width: number; height: number };
@@ -147,7 +151,7 @@ export function TutorialRunner({
       setTicked(false);
       setNotice(false);
       setHidden(false);
-      setRun({ tutorial, index: 0, phase: "intro", first: false });
+      setRun({ tutorial, index: 0, phase: "intro", first: false, recorded: "sending" });
     },
     [],
   );
@@ -186,8 +190,13 @@ export function TutorialRunner({
 
   const finish = useCallback((current: Run) => {
     const first = here.current.completed?.has(current.tutorial.id) !== true;
-    here.current.onComplete(current.tutorial);
-    setRun({ ...current, phase: "done", first });
+    const sent = here.current.onComplete(current.tutorial);
+    setRun({ ...current, phase: "done", first, recorded: sent === undefined ? "yes" : "sending" });
+    if (sent === undefined) return;
+    void sent.then(
+      (ok) => setRun((now) => (now?.tutorial.id === current.tutorial.id ? { ...now, recorded: ok ? "yes" : "no" } : now)),
+      () => setRun((now) => (now?.tutorial.id === current.tutorial.id ? { ...now, recorded: "no" } : now)),
+    );
   }, []);
 
   const advance = useCallback(() => {
@@ -565,7 +574,14 @@ export function TutorialRunner({
                     <h2 className="text-base font-semibold leading-snug">Tutorial complete</h2>
                     <div className="mt-1 grid gap-2 text-sm leading-relaxed text-muted-foreground">
                       <p>
-                        {run.first ? (
+                        {run.recorded === "no" ? (
+                          <>
+                            Done, but your points could not be recorded just now. Run it again
+                            later to collect them.
+                          </>
+                        ) : run.recorded === "sending" ? (
+                          <>Recording your points…</>
+                        ) : run.first ? (
                           <>
                             <strong className="text-foreground">
                               +{points(run.tutorial.points)}

@@ -3,7 +3,7 @@ import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { Sandbox } from "../sandbox";
 import { TutorialRunner } from "./TutorialRunner";
-import { defineTutorials, tutorialsFor, type Tutorial } from "./types";
+import { defineTutorials, tutorialsFor, untilMet, type Tutorial } from "./types";
 
 const catalog = [
   { id: "add", title: "Add a task", summary: "Make one.", points: 10, minutes: 2 },
@@ -151,6 +151,31 @@ describe("TutorialRunner", () => {
     view.unmount();
     expect(sandbox.active).toBe(false);
     expect(framed()).toBe(false);
+  });
+
+  test("`at` can wait on the query string as well as the path", () => {
+    expect(untilMet({ at: "/runs?group=battery" }, "/runs", document, "?group=battery&sort=date")).toBe(true);
+    expect(untilMet({ at: "/runs?group=battery" }, "/runs", document, "?group=date")).toBe(false);
+    expect(untilMet({ at: (_path, search) => search.includes("sort=") }, "/runs", document, "?sort=x")).toBe(true);
+    expect(untilMet({ at: "/runs" }, "/runs", document, "?anything")).toBe(true);
+  });
+
+  test("points are promised only once the Grove has recorded them", async () => {
+    onComplete.mockReturnValue(Promise.resolve(false));
+    const sandbox = new Sandbox();
+    mount(sandbox);
+    act(() => opener?.());
+    fireEvent.click(button("Start"));
+    fireEvent.click(button("Start"));
+    fireEvent.click(button("Skip this step"));
+    fireEvent.click(button("Skip this step"));
+    fireEvent.click(button("Finish"));
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+      await Promise.resolve();
+    });
+    expect(screen.queryByText("+10 points")).toBeNull();
+    expect(screen.getByText(/could not be recorded/)).toBeTruthy();
   });
 
   test("a finished tutorial earns nothing twice, and ?tutorial= starts one", () => {

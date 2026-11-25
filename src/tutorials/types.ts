@@ -24,7 +24,9 @@ export type TutorialUntil =
   // Nothing matching it is: the dialog closed.
   | { gone: string }
   // They reached this page: an exact router path, or a test of it.
-  | { at: string | ((pathname: string) => boolean) }
+  // A string with a query ("/runs?group=battery") must match it too; a test
+  // gets the query string ("?group=battery", or "") as well as the path.
+  | { at: string | ((pathname: string, search: string) => boolean) }
   // A field matching this selector holds a value (that `matches` accepts).
   | { value: string; matches?: (value: string) => boolean };
 
@@ -94,9 +96,19 @@ export function routePath(route: string): string {
 
 // Whether a step's condition holds right now. `did` is not here: it is an
 // event, not a state, and the runner listens for it.
-export function untilMet(until: TutorialUntil, pathname: string, root: ParentNode): boolean {
+export function untilMet(
+  until: TutorialUntil,
+  pathname: string,
+  root: ParentNode,
+  search = typeof window === "undefined" ? "" : window.location.search,
+): boolean {
   if ("at" in until) {
-    return typeof until.at === "string" ? routePath(until.at) === pathname : until.at(pathname);
+    if (typeof until.at !== "string") return until.at(pathname, search);
+    if (!until.at.includes("?")) return routePath(until.at) === pathname;
+    const [path, query] = until.at.split("?");
+    const wanted = new URLSearchParams(query);
+    const have = new URLSearchParams(search);
+    return path === pathname && [...wanted].every(([key, value]) => have.get(key) === value);
   }
   if ("see" in until) return visible(root, until.see) !== null;
   if ("gone" in until) return visible(root, until.gone) === null;

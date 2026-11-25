@@ -340,7 +340,7 @@ across every route (the same place as `GroveTutorial`):
 | `{ did: api.x.y, when?: (args) => boolean }` | they made that write (practised, blocked, or let through by `allow`) |
 | `{ click: "selector" }` | they clicked something matching it |
 | `{ see: "selector" }` / `{ gone: "selector" }` | it is on screen / no longer on screen (a dialog opened, closed) |
-| `{ at: "/path" }` or `{ at: (pathname) => boolean }` | they reached that page |
+| `{ at: "/path" }`, `{ at: "/path?key=value" }` or `{ at: (pathname, search) => boolean }` | they reached that page (with those query values, when given) |
 | `{ value: "selector", matches?: (value) => boolean }` | that field holds a value |
 
 Every waiting step also offers **Skip this step**, so a page that looks
@@ -416,7 +416,7 @@ query string (`/queue?lane=grade`) navigates until the query matches too.
 
 ### Apps with their own header
 
-`GroveShell` shows the menu item itself. An app that draws its own header
+`GroveShell` shows the menu item itself. An app's own `GroveMenuItem` takes `tour="<name>"` for a step to ring. An app that draws its own header
 calls `useOpenTutorials()` (null until there is something to offer) and
 `useTutorialsBadge()` ("2/5"), inside `TutorialProvider`. `TutorialRunner` is
 the runner with no Grove wiring, for a tree that has no `GroveProvider`.

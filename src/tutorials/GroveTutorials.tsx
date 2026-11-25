@@ -89,13 +89,17 @@ export function GroveTutorials({ tutorials, pathname, navigate, groveHref = "/" 
     [progress, appSlug],
   );
   const onComplete = useCallback(
-    (tutorial: Tutorial) => {
+    (tutorial: Tutorial) =>
       // The Grove's client, never the app's: this is the one write that
-      // must leave the browser while the app's sandbox is open.
-      grove.mutation(groveApi.tutorials.complete, { app: appSlug, tutorial: tutorial.id }).catch(() => {
-        // An older Grove, or offline: the tutorial still ran.
-      });
-    },
+      // must leave the browser while the app's sandbox is open. An older
+      // Grove, or offline: the tutorial still ran, and the card says the
+      // points were not recorded.
+      grove
+        .mutation(groveApi.tutorials.complete, { app: appSlug, tutorial: tutorial.id })
+        .then(
+          () => true,
+          () => false,
+        ),
     [grove, appSlug],
   );
   const register = useCallback(
