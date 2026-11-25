@@ -253,6 +253,21 @@ and anything written through the **Grove's** client (Report a problem really
 does file a report). A blocked `generateUploadUrl` fails, so an upload step
 fails harmlessly; do not build a tutorial around one.
 
+### What to teach
+
+Teach what the app is *for*, not how to drive a table. A filter, a sort or a
+saved view is worth one tutorial at most; the rest go to the app's own deep
+features: the calculator, the analyzer, the generator, the planner, the
+thing nobody finds on their own. Ask which features a lead would walk a new
+member through in person, and start there.
+
+Reading is never the problem. Opening a log in an analyzer, fetching a file
+from Drive to show it, running a calculation in the browser: none of it
+writes, so all of it is fair game in tutorial mode, even when it leaves
+Convex. Only a *write* that leaves Convex (a fetch that starts a job, an
+upload, local storage the app syncs later) needs `useTutorialMode()` to hold
+it back. A read-only Convex action needs `allow`.
+
 ### The three files
 
 **`src/tutorial-catalog.ts`** is what the Grove lists. Plain data, no React:
@@ -269,7 +284,7 @@ export default defineTutorialCatalog([
 `id` is permanent (completions are kept by it). `groups` names Grove groups offered a tutorial whatever their
 role (`groups: ["Outreach Leads"]` beside `minRole: "lead"`), for access an
 app grants by group; filter by the app's own capability as well. `points` is 5–50, about five
-a minute. `minRole` hides a tutorial from people below it. At most 12.
+a minute. `minRole` hides a tutorial from people below it. At most 24.
 
 **`vite.config.ts`** writes it to `grove-tutorials.json`, which the Grove
 reads:
