@@ -24,6 +24,11 @@ import { captureGroveFeedback } from "./sentry";
 // 40px tall for a thumb.
 
 const MAX_TEXT = 4000;
+// Images a person may add beside the screenshot, and how big each may be:
+// the Grove's own limits (REPORT_ATTACHMENTS_MAX and SCREENSHOT_MAX_BYTES in
+// its convex/), checked here first so nobody waits on an upload it refuses.
+export const MAX_ATTACHMENTS = 4;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 // Pen width in CSS pixels of the sheet, whatever the screenshot's scale.
 const PEN_WIDTH = 4;
 const SENT_MESSAGE_MS = 1200;
@@ -37,6 +42,8 @@ export const SENTRY_WAIT_MS = 4000;
 export const REPORT_SHEET_ATTRIBUTE = "data-grove-report";
 
 type Phase = "editing" | "sending" | "sent";
+// An image the person added, with the object URL its thumbnail shows.
+type Attachment = { file: File; url: string };
 
 export function ReportSheet({
   client,
@@ -60,6 +67,7 @@ export function ReportSheet({
   const [kind, setKind] = useState<"bug" | "idea">("bug");
   const [text, setText] = useState("");
   const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [phase, setPhase] = useState<Phase>("editing");
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +83,42 @@ export function ReportSheet({
     dialog.addEventListener("close", onClose);
     return () => dialog.removeEventListener("close", onClose);
   }, [onClose]);
+
+  // Thumbnails are object URLs, made when an image is added and released
+  // when it is removed or the sheet closes.
+  const held = useRef(attachments);
+  useEffect(() => {
+    held.current = attachments;
+  }, [attachments]);
+  useEffect(
+    () => () => {
+      for (const { url } of held.current) URL.revokeObjectURL(url);
+    },
+    [],
+  );
+
+  const addImages = (picked: File[]) => {
+    const images = picked.filter((file) => file.type.startsWith("image/"));
+    const small = images.filter((file) => file.size <= MAX_ATTACHMENT_BYTES);
+    const taken = small.slice(0, MAX_ATTACHMENTS - attachments.length);
+    setAttachments([
+      ...attachments,
+      ...taken.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    ]);
+    setError(
+      images.length < picked.length
+        ? "Only images can be attached."
+        : small.length < images.length
+          ? "Each image must be under 10 MB."
+          : taken.length < small.length
+            ? `A report takes up to ${MAX_ATTACHMENTS} images.`
+            : null,
+    );
+  };
+  const removeImage = (attachment: Attachment) => {
+    URL.revokeObjectURL(attachment.url);
+    setAttachments(attachments.filter((other) => other !== attachment));
+  };
 
   useEffect(() => {
     if (phase !== "sent") return;
@@ -115,23 +159,26 @@ export function ReportSheet({
         console.warn("[grove] Sentry did not take the report", sentryError);
         return undefined;
       });
-      let storageId: string | undefined;
-      if (blob !== undefined) {
+      const upload = async (image: Blob, what: string) => {
         const uploadUrl = await client.mutation(groveApi.feedback.generateUploadUrl, {});
         const response = await fetch(uploadUrl, {
           method: "POST",
-          headers: { "Content-Type": "image/png" },
-          body: blob,
+          headers: { "Content-Type": image.type },
+          body: image,
         });
-        if (!response.ok) throw new Error(`Screenshot upload failed (${response.status})`);
-        storageId = ((await response.json()) as { storageId: string }).storageId;
-      }
+        if (!response.ok) throw new Error(`${what} upload failed (${response.status})`);
+        return ((await response.json()) as { storageId: string }).storageId;
+      };
+      const storageId = blob === undefined ? undefined : await upload(blob, "Screenshot");
+      const attachmentIds: string[] = [];
+      for (const { file } of attachments) attachmentIds.push(await upload(file, "Image"));
       const eventId = await sentryEventId;
       await client.mutation(groveApi.feedback.submit, {
         app,
         kind,
         text: message,
         ...(storageId === undefined ? {} : { screenshot: storageId }),
+        ...(attachmentIds.length === 0 ? {} : { attachments: attachmentIds }),
         ...(eventId === undefined ? {} : { sentryEventId: eventId }),
         context,
       });
@@ -171,6 +218,18 @@ export function ReportSheet({
           onSubmit={(event) => {
             event.preventDefault();
             void send();
+          }}
+          // Ctrl+V with a picture on the clipboard, anywhere in the sheet:
+          // how a screenshot taken a moment ago usually arrives on a
+          // laptop. Text pasted into the box is left alone.
+          onPaste={(event) => {
+            // A copy from a document carries its text and a picture of
+            // it; that one is text, and pastes as text.
+            if (event.clipboardData.types.includes("text/plain")) return;
+            const pasted = Array.from(event.clipboardData.files);
+            if (pasted.length === 0 || phase !== "editing") return;
+            event.preventDefault();
+            addImages(pasted);
           }}
         >
           <div className="border-b px-5 py-3">
@@ -229,6 +288,13 @@ export function ReportSheet({
               />
             </div>
 
+            <Attachments
+              attachments={attachments}
+              onAdd={addImages}
+              onRemove={removeImage}
+              disabled={phase !== "editing"}
+            />
+
             {error !== null && (
               <p role="alert" className="text-sm text-destructive">
                 {error}
@@ -272,6 +338,84 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined>
       },
     );
   });
+}
+
+// Images the person adds themselves: a photo of the robot, a screenshot
+// from another app. A row of thumbnails, each with its own remove button,
+// then the button that opens the phone's photo picker or the file dialog.
+function Attachments({
+  attachments,
+  onAdd,
+  onRemove,
+  disabled,
+}: {
+  attachments: Attachment[];
+  onAdd: (picked: File[]) => void;
+  onRemove: (attachment: Attachment) => void;
+  disabled: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="grid gap-2">
+      {attachments.length > 0 && (
+        <ul className="flex flex-wrap gap-2">
+          {attachments.map((attachment) => (
+            <li key={attachment.url} data-attachment="" className="relative size-16">
+              <img
+                src={attachment.url}
+                alt={attachment.file.name}
+                className="size-full rounded-md border bg-muted object-cover"
+              />
+              <button
+                type="button"
+                disabled={disabled}
+                aria-label={`Remove ${attachment.file.name}`}
+                onClick={() => onRemove(attachment)}
+                // A 40px target around a 24px badge, so a thumb can hit it
+                // without it covering the picture.
+                className="group absolute -top-2 -right-2 flex size-10 items-start justify-end disabled:opacity-40"
+              >
+                <span className="flex size-6 items-center justify-center rounded-full border bg-background text-foreground group-hover:bg-accent">
+                  <svg viewBox="0 0 12 12" className="size-3" fill="none" aria-hidden="true">
+                    <path d="M2.5 2.5l7 7m0-7l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          {attachments.length === 0
+            ? `Add or paste up to ${MAX_ATTACHMENTS} images.`
+            : `${attachments.length} of ${MAX_ATTACHMENTS} images attached.`}
+        </p>
+        <button
+          type="button"
+          disabled={disabled || attachments.length >= MAX_ATTACHMENTS}
+          onClick={() => inputRef.current?.click()}
+          className="h-10 shrink-0 rounded-md border px-3 text-sm hover:bg-accent disabled:opacity-40"
+        >
+          Add images
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          aria-label="Images to attach"
+          onChange={(event) => {
+            onAdd(Array.from(event.target.files ?? []));
+            // So picking the same file again after removing it still fires.
+            event.target.value = "";
+          }}
+        />
+      </div>
+    </div>
+  );
 }
 
 // Holds the screenshot's place while it is captured. An empty SVG with the

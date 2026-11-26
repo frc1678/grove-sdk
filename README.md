@@ -685,6 +685,8 @@ Every Grove app has a **Report a problem** button: a flag icon in the
 `GroveShell` header, and **Alt+Shift+R** (Option+Shift+R on a Mac)
 anywhere. It opens a sheet with a screenshot of what the person was looking
 at, a pen to circle the problem, a line of text, and a Bug / Idea toggle.
+**Add images** attaches up to four more pictures (a photo of the robot, a
+screenshot from another app), picked from the device or pasted in.
 The report goes to the Grove, which files it and posts it to Slack.
 
 What a report carries without anyone typing it:
