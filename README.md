@@ -253,6 +253,21 @@ and anything written through the **Grove's** client (Report a problem really
 does file a report). A blocked `generateUploadUrl` fails, so an upload step
 fails harmlessly; do not build a tutorial around one.
 
+### What to teach
+
+Teach what the app is *for*, not how to drive a table. A filter, a sort or a
+saved view is worth one tutorial at most; the rest go to the app's own deep
+features: the calculator, the analyzer, the generator, the planner, the
+thing nobody finds on their own. Ask which features a lead would walk a new
+member through in person, and start there.
+
+Reading is never the problem. Opening a log in an analyzer, fetching a file
+from Drive to show it, running a calculation in the browser: none of it
+writes, so all of it is fair game in tutorial mode, even when it leaves
+Convex. Only a *write* that leaves Convex (a fetch that starts a job, an
+upload, local storage the app syncs later) needs `useTutorialMode()` to hold
+it back. A read-only Convex action needs `allow`.
+
 ### The three files
 
 **`src/tutorial-catalog.ts`** is what the Grove lists. Plain data, no React:
@@ -269,7 +284,7 @@ export default defineTutorialCatalog([
 `id` is permanent (completions are kept by it). `groups` names Grove groups offered a tutorial whatever their
 role (`groups: ["Outreach Leads"]` beside `minRole: "lead"`), for access an
 app grants by group; filter by the app's own capability as well. `points` is 5–50, about five
-a minute. `minRole` hides a tutorial from people below it. At most 12.
+a minute. `minRole` hides a tutorial from people below it. At most 24.
 
 **`vite.config.ts`** writes it to `grove-tutorials.json`, which the Grove
 reads:
@@ -365,6 +380,7 @@ reference. Return what the real function returns (an id, usually). `box`:
 | `box.read(query, args?)` | what a query the page is watching shows right now, for an effect that needs a name or a count |
 | `box.readAll(query)` | `[{ args, result }]` for every set of arguments the page watches the query with, for when the write does not carry them |
 | `box.find(query, id)` | the document with that `_id` as a watched query shows it now, in a list, a page or as the whole result |
+| `box.refuse(message)` | refuse the write as the real function would: the call rejects with that message as a `ConvexError`, nothing the effect changed is kept, and a step waiting on it does not move on. `return box.refuse("A sponsor with that name already exists")` |
 | `box.me` | `{ name, userId }` of the person practising, for a document that shows its author |
 | `box.answer(query, (queryArgs) => result \| undefined)` | answer a query in the browser: a practice document's own page, which the server has never heard of |
 
@@ -427,6 +443,12 @@ A background queue that sends writes through the app's client (an offline
 outbox, a retry loop) sees an unpractised write fail with
 `TutorialModeError`, so it must treat that as "try later", never as sent.
 Better still, pause the queue while `useTutorialMode()` is true.
+
+A client the app opens to *another* app's deployment (Parts filing a Harvest
+request, BotTok reading Retro's files) is invisible to the sandbox too. Reads
+through it are fine. A write through it must check `useTutorialMode()` and
+refuse with `TutorialModeError`, or practising in one app files something
+real in another.
 
 `GroveShell` shows the menu item itself. An app's own `GroveMenuItem` takes `tour="<name>"` for a step to ring. An app that draws its own header
 calls `useOpenTutorials()` (null until there is something to offer) and

@@ -202,10 +202,15 @@ export function TutorialRunner({
     );
   }, []);
 
+  // The page (path and query) each step was on when the person moved past
+  // it, so Back can return there: a later step may have gone elsewhere.
+  const stepPages = useRef(new Map<number, string>());
+  const goingBack = useRef(false);
   const advance = useCallback(() => {
     setTicked(false);
     const current = runRef.current;
     if (current === null || current.phase !== "steps") return;
+    stepPages.current.set(current.index, `${here.current.pathname}${window.location.search}`);
     if (current.index < current.tutorial.steps.length - 1) {
       setRun({ ...current, index: current.index + 1 });
     } else {
@@ -215,6 +220,7 @@ export function TutorialRunner({
 
   const back = useCallback(() => {
     setTicked(false);
+    goingBack.current = true;
     setRun((current) =>
       current === null || current.phase !== "steps" || current.index === 0
         ? current
@@ -342,6 +348,11 @@ export function TutorialRunner({
         : routePath(step.route) === path;
     };
     if (!onRoute()) go(step.route as string);
+    else if (goingBack.current && step.route === undefined) {
+      const left = stepPages.current.get(runRef.current?.index ?? -1);
+      if (left !== undefined && left !== `${here.current.pathname}${window.location.search}`) go(left);
+    }
+    goingBack.current = false;
     // Nothing is checked until the step's own page has loaded: the page the
     // person was on could already satisfy a condition meant for after it.
     let arrived = onRoute();
@@ -353,6 +364,15 @@ export function TutorialRunner({
     let changedAt = opened;
     let met = false;
     let scrolled = false;
+    // Content that loads after the first scroll can push the target off
+    // screen. Bring it back, until the person scrolls on their own.
+    let personScrolled = false;
+    const onPersonScroll = () => {
+      personScrolled = true;
+    };
+    window.addEventListener("wheel", onPersonScroll, { passive: true });
+    window.addEventListener("touchmove", onPersonScroll, { passive: true });
+    window.addEventListener("keydown", onPersonScroll);
     let topLayer = 0;
     const pass = () => {
       if (met) return;
@@ -366,6 +386,11 @@ export function TutorialRunner({
         elementRef.current = found;
         if (found !== null && !scrolled) {
           scrolled = true;
+          found.scrollIntoView({ block: "center", inline: "nearest" });
+        }
+      } else if (found !== null && !personScrolled) {
+        const rect = found.getBoundingClientRect();
+        if (rect.bottom < 0 || rect.top > window.innerHeight) {
           found.scrollIntoView({ block: "center", inline: "nearest" });
         }
       }
@@ -413,6 +438,8 @@ export function TutorialRunner({
       until !== undefined && "did" in until
         ? sandbox.onEvent((event) => {
             if (event.name !== functionName(until.did)) return;
+            // A write the effect refused, as the server would, did not happen.
+            if (event.kind === "refused") return;
             if (until.when !== undefined && !until.when(event.args)) return;
             pass();
           })
@@ -424,6 +451,9 @@ export function TutorialRunner({
     };
     document.addEventListener("click", onClick, true);
     return () => {
+      window.removeEventListener("wheel", onPersonScroll);
+      window.removeEventListener("touchmove", onPersonScroll);
+      window.removeEventListener("keydown", onPersonScroll);
       window.clearInterval(timer);
       window.clearTimeout(first);
       offEvent();

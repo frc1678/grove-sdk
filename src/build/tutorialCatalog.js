@@ -28,7 +28,7 @@
 export const TUTORIALS_FILE = "grove-tutorials.json";
 export const TUTORIALS_VERSION = 1;
 export const TUTORIAL_ROLES = ["student", "lead", "coach", "admin"];
-export const MAX_TUTORIALS = 12;
+export const MAX_TUTORIALS = 24;
 export const MIN_POINTS = 5;
 export const MAX_POINTS = 50;
 export const MAX_MINUTES = 30;
